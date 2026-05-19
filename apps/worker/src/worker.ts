@@ -20,8 +20,8 @@ export function createWorker(databaseUrl: string) {
       await boss.start();
 
       await boss.createQueue("daily-monitoring");
-      await boss.work("daily-monitoring", async (job) => {
-        const strategyId = (job.data as { strategyId?: string })?.strategyId;
+      await boss.work<{ strategyId?: string }>("daily-monitoring", async (jobs) => {
+        const strategyId = jobs[0]?.data?.strategyId;
         console.log("[worker] daily-monitoring job triggered", strategyId ? `strategyId=${strategyId}` : "(all)");
         await runMonitoringJob(db, strategyId);
       });
