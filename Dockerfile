@@ -13,6 +13,7 @@ COPY . .
 RUN npm run build -w packages/db
 RUN npm run build -w apps/web
 RUN npm run build -w apps/worker
+RUN npm prune --production
 
 # ---- Web target: Next.js standalone ----
 FROM node:20-alpine AS web
@@ -30,8 +31,7 @@ FROM node:20-alpine AS worker
 WORKDIR /app
 COPY --from=build /app/apps/worker/dist ./apps/worker/dist
 COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/apps/worker/node_modules ./apps/worker/node_modules
-COPY --from=build /app/packages/db/dist ./packages/db/dist
+COPY --from=build /app/packages/db ./packages/db
 WORKDIR /app/apps/worker
 CMD ["node", "dist/index.js"]
 
