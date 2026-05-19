@@ -1,0 +1,100 @@
+<h2>设计第三节：服务架构与数据流</h2>
+<p class="subtitle">两个 Railway 服务，通过 PostgreSQL（pg-boss）协作，无需直接通信。</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
+
+  <div style="background: var(--surface); border: 2px solid #7dd3fc; border-radius: 10px; padding: 18px;">
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px;">
+      <div style="background: #7dd3fc22; border-radius: 6px; padding: 4px 10px; font-size: 12px; color: #7dd3fc; font-weight: 600;">📦 next-app</div>
+      <span style="font-size: 12px; color: var(--muted);">用户交互层</span>
+    </div>
+    <div style="font-size: 12px; line-height: 2; color: var(--muted);">
+      <div style="color: var(--text, #e2e8f0); font-weight: 500; margin-bottom: 6px;">前端页面</div>
+      <div>・ 策略工坊（AI 对话 + 策略预览）</div>
+      <div>・ 回测中心（进度 + 结果图表）</div>
+      <div>・ 参数探索（Phase 2）</div>
+      <div>・ 持仓管理（Phase 2）</div>
+      <div style="color: var(--text, #e2e8f0); font-weight: 500; margin-top: 10px; margin-bottom: 6px;">API Routes</div>
+      <div>・ Claude API 对话代理</div>
+      <div>・ 策略 CRUD</div>
+      <div>・ 触发回测 → 入队 pg-boss</div>
+      <div>・ 轮询回测进度（SSE）</div>
+    </div>
+  </div>
+
+  <div style="background: var(--surface); border: 2px solid #86efac; border-radius: 10px; padding: 18px;">
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px;">
+      <div style="background: #86efac22; border-radius: 6px; padding: 4px 10px; font-size: 12px; color: #86efac; font-weight: 600;">📦 worker</div>
+      <span style="font-size: 12px; color: var(--muted);">计算层（24/7 运行）</span>
+    </div>
+    <div style="font-size: 12px; line-height: 2; color: var(--muted);">
+      <div style="color: var(--text, #e2e8f0); font-weight: 500; margin-bottom: 6px;">Phase 1 任务</div>
+      <div>・ 消费 <code style="font-size: 10px;">run-backtest</code> 任务</div>
+      <div>・ 抓取并缓存行情数据</div>
+      <div>・ 执行回测引擎，写回结果</div>
+      <div style="color: var(--text, #e2e8f0); font-weight: 500; margin-top: 10px; margin-bottom: 6px;">Phase 2 任务</div>
+      <div>・ 消费 <code style="font-size: 10px;">run-optimization</code> 任务</div>
+      <div>・ 定时信号监控（每 15min）</div>
+      <div>・ 触发通知 / 模拟仓自动成交</div>
+    </div>
+  </div>
+
+</div>
+
+<div style="background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 20px;">
+  <div style="font-weight: 600; margin-bottom: 14px; font-size: 14px;">🔵 Phase 1 核心数据流：回测</div>
+  <div style="display: flex; align-items: center; gap: 0; font-size: 12px; flex-wrap: wrap; row-gap: 10px;">
+    <div style="background: #1e3a5f; border-radius: 6px; padding: 8px 12px; color: #7dd3fc;">用户点击"运行回测"</div>
+    <div style="color: var(--muted); padding: 0 8px;">→</div>
+    <div style="background: #1e3a5f; border-radius: 6px; padding: 8px 12px; color: #7dd3fc;">Web API 入队<br><code style="font-size: 10px;">run-backtest</code></div>
+    <div style="color: var(--muted); padding: 0 8px;">→</div>
+    <div style="background: #1a3a2a; border-radius: 6px; padding: 8px 12px; color: #86efac;">Worker 消费任务<br>拉取行情 / 执行引擎</div>
+    <div style="color: var(--muted); padding: 0 8px;">→</div>
+    <div style="background: #1a3a2a; border-radius: 6px; padding: 8px 12px; color: #86efac;">结果写入<br>backtests 表</div>
+    <div style="color: var(--muted); padding: 0 8px;">→</div>
+    <div style="background: #1e3a5f; border-radius: 6px; padding: 8px 12px; color: #7dd3fc;">前端 SSE 收到<br>完成事件，渲染图表</div>
+  </div>
+  <div style="margin-top: 12px; font-size: 11px; color: var(--muted);">Web 和 Worker 不直接通信 — Web 写任务到 pg-boss，Worker 轮询消费，结果写回 PostgreSQL，Web 通过 SSE 监听 DB 变化。</div>
+</div>
+
+<div style="background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 20px;">
+  <div style="font-weight: 600; margin-bottom: 14px; font-size: 14px;">🟡 Phase 2 信号监控流：实仓通知 vs 模拟仓自动执行</div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 12px;">
+    <div style="background: #1a2a1a; border-radius: 6px; padding: 12px;">
+      <div style="color: #86efac; font-weight: 600; margin-bottom: 8px;">模拟仓</div>
+      <div style="color: var(--muted); line-height: 1.8;">
+        Worker 每 15min 检查 →<br>
+        信号触发 →<br>
+        自动在 trades 表写入成交记录 →<br>
+        position 自动更新 →<br>
+        创建 notification（告知用户已自动成交）
+      </div>
+    </div>
+    <div style="background: #2a1a1a; border-radius: 6px; padding: 12px;">
+      <div style="color: #fca5a5; font-weight: 600; margin-bottom: 8px;">实仓</div>
+      <div style="color: var(--muted); line-height: 1.8;">
+        Worker 每 15min 检查 →<br>
+        信号触发 →<br>
+        仅创建 notification（提醒用户操作）→<br>
+        用户手动在券商执行 →<br>
+        用户在 App 手动更新持仓
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px;">
+  <div style="font-weight: 600; margin-bottom: 12px; font-size: 14px;">💬 AI 策略生成流</div>
+  <div style="display: flex; align-items: flex-start; gap: 0; font-size: 12px; flex-wrap: wrap; row-gap: 10px;">
+    <div style="background: #1e3a5f; border-radius: 6px; padding: 8px 12px; color: #7dd3fc;">用户描述策略<br>"均线金叉 + RSI"</div>
+    <div style="color: var(--muted); padding: 0 8px; margin-top: 8px;">→</div>
+    <div style="background: #2a1a3a; border-radius: 6px; padding: 8px 12px; color: #c084fc;">Claude API<br>多轮对话补全细节</div>
+    <div style="color: var(--muted); padding: 0 8px; margin-top: 8px;">→</div>
+    <div style="background: #2a1a3a; border-radius: 6px; padding: 8px 12px; color: #c084fc;">输出 Strategy JSON<br>前端实时预览</div>
+    <div style="color: var(--muted); padding: 0 8px; margin-top: 8px;">→</div>
+    <div style="background: #1e3a5f; border-radius: 6px; padding: 8px 12px; color: #7dd3fc;">用户确认保存<br>→ strategies 表</div>
+  </div>
+  <div style="margin-top: 10px; font-size: 11px; color: var(--muted);">Claude 收到的系统提示包含完整的 DSL Schema 定义，输出严格遵循该格式。修改已有策略时，将现有 JSON 连同对话发给 Claude，它直接返回更新后的 JSON。</div>
+</div>
+
+<p style="margin-top: 16px; font-size: 13px; color: var(--muted);">这个架构流向看起来合理吗？在终端告诉我。</p>

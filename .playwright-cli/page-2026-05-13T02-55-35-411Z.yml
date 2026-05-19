@@ -1,0 +1,79 @@
+- generic [active] [ref=e1]:
+  - complementary [ref=e2]:
+    - generic [ref=e3]: TraderPhase 1
+    - navigation [ref=e4]:
+      - link "策略工坊" [ref=e5] [cursor=pointer]:
+        - /url: /workshop
+        - img [ref=e6]
+        - text: 策略工坊
+      - link "回测中心" [ref=e9] [cursor=pointer]:
+        - /url: /backtest
+        - img [ref=e10]
+        - text: 回测中心
+      - link "参数优化 P2" [disabled]:
+        - /url: "#"
+        - img
+        - text: 参数优化
+        - generic: P2
+      - link "持仓管理 P2" [disabled]:
+        - /url: "#"
+        - img
+        - text: 持仓管理
+        - generic: P2
+  - main [ref=e12]:
+    - generic [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - heading "配置回测" [level=2] [ref=e16]
+          - generic [ref=e17]:
+            - text: 策略
+            - combobox [ref=e18]:
+              - generic [ref=e19]: 选择策略
+              - img: ▼
+            - textbox [ref=e20]
+          - generic [ref=e21]:
+            - text: 开始日期
+            - textbox [ref=e22]: 2022-01-01
+          - generic [ref=e23]:
+            - text: 结束日期
+            - textbox [ref=e24]: 2026-05-13
+          - generic [ref=e25]:
+            - text: 初始资金 ($)
+            - spinbutton [ref=e26]: "100000"
+          - button "运行回测" [disabled]:
+            - img
+            - text: 运行回测
+        - generic [ref=e27]: 历史记录
+        - generic [ref=e28]:
+          - button "TQQQ DCA Below 20 SMA 失败 2022-01-01 → 2026-05-13" [ref=e29]:
+            - generic [ref=e30]:
+              - generic [ref=e31]: TQQQ DCA Below 20 SMA
+              - generic [ref=e32]: 失败
+            - generic [ref=e33]: 2022-01-01 → 2026-05-13
+          - button "BRK.B 逢低加仓策略 失败 2022-01-01 → 2026-05-13" [ref=e34]:
+            - generic [ref=e35]:
+              - generic [ref=e36]: BRK.B 逢低加仓策略
+              - generic [ref=e37]: 失败
+            - generic [ref=e38]: 2022-01-01 → 2026-05-13
+          - button "BRK.B 逢低加仓策略 失败 2022-01-01 → 2026-05-12" [ref=e39]:
+            - generic [ref=e40]:
+              - generic [ref=e41]: BRK.B 逢低加仓策略
+              - generic [ref=e42]: 失败
+            - generic [ref=e43]: 2022-01-01 → 2026-05-12
+          - button "BRK.B 逢低加仓策略 失败 2022-01-01 → 2026-05-12" [ref=e44]:
+            - generic [ref=e45]:
+              - generic [ref=e46]: BRK.B 逢低加仓策略
+              - generic [ref=e47]: 失败
+            - generic [ref=e48]: 2022-01-01 → 2026-05-12
+          - button "BRK.B 逢低加仓策略 失败 2022-01-01 → 2026-05-12" [ref=e49]:
+            - generic [ref=e50]:
+              - generic [ref=e51]: BRK.B 逢低加仓策略
+              - generic [ref=e52]: 失败
+            - generic [ref=e53]: 2022-01-01 → 2026-05-12
+          - button "TQQQ DCA Below 20 SMA 等待中 2000-01-01 → 2026-05-12" [ref=e54]:
+            - generic [ref=e55]:
+              - generic [ref=e56]: TQQQ DCA Below 20 SMA
+              - generic [ref=e57]: 等待中
+            - generic [ref=e58]: 2000-01-01 → 2026-05-12
+      - generic [ref=e60]: 选择策略并运行回测以查看结果
+  - alert [ref=e61]

@@ -1,0 +1,138 @@
+<h2>设计第二节：数据库 Schema</h2>
+<p class="subtitle">PostgreSQL，7 张核心表。pg-boss 任务队列自动管理自己的表，不需要手动维护。</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+
+  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px;">
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+      <div style="width: 8px; height: 8px; border-radius: 50%; background: #7dd3fc;"></div>
+      <span style="font-weight: 600; font-size: 14px;">strategies</span>
+      <span style="font-size: 11px; color: var(--muted);">策略定义</span>
+    </div>
+    <div style="font-family: monospace; font-size: 11px; line-height: 1.9; color: var(--muted);">
+      <div><span style="color: #f472b6;">id</span>           uuid PK</div>
+      <div><span style="color: #86efac;">name</span>         text</div>
+      <div><span style="color: #86efac;">description</span>  text</div>
+      <div><span style="color: #86efac;">config</span>       jsonb  <span style="color: #64748b;">← 完整策略 DSL</span></div>
+      <div><span style="color: #86efac;">created_at</span>   timestamptz</div>
+      <div><span style="color: #86efac;">updated_at</span>   timestamptz</div>
+    </div>
+  </div>
+
+  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px;">
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+      <div style="width: 8px; height: 8px; border-radius: 50%; background: #86efac;"></div>
+      <span style="font-weight: 600; font-size: 14px;">backtests</span>
+      <span style="font-size: 11px; color: var(--muted);">回测记录</span>
+    </div>
+    <div style="font-family: monospace; font-size: 11px; line-height: 1.9; color: var(--muted);">
+      <div><span style="color: #f472b6;">id</span>              uuid PK</div>
+      <div><span style="color: #fde68a;">strategy_id</span>     uuid FK → strategies</div>
+      <div><span style="color: #86efac;">start_date</span>      date</div>
+      <div><span style="color: #86efac;">end_date</span>        date</div>
+      <div><span style="color: #86efac;">initial_capital</span> numeric</div>
+      <div><span style="color: #86efac;">status</span>          text  <span style="color: #64748b;">← pending/running/done/failed</span></div>
+      <div><span style="color: #86efac;">results</span>         jsonb  <span style="color: #64748b;">← 指标 + 权益曲线</span></div>
+      <div><span style="color: #86efac;">created_at</span>      timestamptz</div>
+    </div>
+  </div>
+
+  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px;">
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+      <div style="width: 8px; height: 8px; border-radius: 50%; background: #f59e0b;"></div>
+      <span style="font-weight: 600; font-size: 14px;">portfolios</span>
+      <span style="font-size: 11px; color: var(--muted);">持仓组合（Phase 2）</span>
+    </div>
+    <div style="font-family: monospace; font-size: 11px; line-height: 1.9; color: var(--muted);">
+      <div><span style="color: #f472b6;">id</span>               uuid PK</div>
+      <div><span style="color: #fde68a;">strategy_id</span>      uuid FK → strategies</div>
+      <div><span style="color: #86efac;">name</span>             text</div>
+      <div><span style="color: #86efac;">mode</span>             text  <span style="color: #64748b;">← 'paper' | 'live'</span></div>
+      <div><span style="color: #86efac;">initial_capital</span>  numeric</div>
+      <div><span style="color: #86efac;">status</span>           text  <span style="color: #64748b;">← active/paused/closed</span></div>
+      <div><span style="color: #86efac;">started_at</span>       timestamptz</div>
+    </div>
+  </div>
+
+  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px;">
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+      <div style="width: 8px; height: 8px; border-radius: 50%; background: #f59e0b;"></div>
+      <span style="font-weight: 600; font-size: 14px;">positions</span>
+      <span style="font-size: 11px; color: var(--muted);">当前持仓（Phase 2）</span>
+    </div>
+    <div style="font-family: monospace; font-size: 11px; line-height: 1.9; color: var(--muted);">
+      <div><span style="color: #f472b6;">id</span>               uuid PK</div>
+      <div><span style="color: #fde68a;">portfolio_id</span>     uuid FK → portfolios</div>
+      <div><span style="color: #86efac;">symbol</span>           text</div>
+      <div><span style="color: #86efac;">total_shares</span>     numeric</div>
+      <div><span style="color: #86efac;">avg_cost</span>         numeric  <span style="color: #64748b;">← 均价，加仓后更新</span></div>
+      <div><span style="color: #86efac;">addition_count</span>   int  <span style="color: #64748b;">← 已加仓次数</span></div>
+      <div><span style="color: #86efac;">opened_at</span>        timestamptz</div>
+    </div>
+  </div>
+
+  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px;">
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+      <div style="width: 8px; height: 8px; border-radius: 50%; background: #f59e0b;"></div>
+      <span style="font-weight: 600; font-size: 14px;">trades</span>
+      <span style="font-size: 11px; color: var(--muted);">交易记录（Phase 2）</span>
+    </div>
+    <div style="font-family: monospace; font-size: 11px; line-height: 1.9; color: var(--muted);">
+      <div><span style="color: #f472b6;">id</span>             uuid PK</div>
+      <div><span style="color: #fde68a;">portfolio_id</span>   uuid FK → portfolios</div>
+      <div><span style="color: #86efac;">symbol</span>         text</div>
+      <div><span style="color: #86efac;">action</span>         text  <span style="color: #64748b;">← 'buy' | 'sell'</span></div>
+      <div><span style="color: #86efac;">shares</span>         numeric</div>
+      <div><span style="color: #86efac;">price</span>          numeric</div>
+      <div><span style="color: #86efac;">source</span>         text  <span style="color: #64748b;">← 'auto'(模拟) | 'manual'(实仓)</span></div>
+      <div><span style="color: #86efac;">executed_at</span>    timestamptz</div>
+    </div>
+  </div>
+
+  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px;">
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+      <div style="width: 8px; height: 8px; border-radius: 50%; background: #a78bfa;"></div>
+      <span style="font-weight: 600; font-size: 14px;">notifications</span>
+      <span style="font-size: 11px; color: var(--muted);">站内通知（Phase 2）</span>
+    </div>
+    <div style="font-family: monospace; font-size: 11px; line-height: 1.9; color: var(--muted);">
+      <div><span style="color: #f472b6;">id</span>             uuid PK</div>
+      <div><span style="color: #86efac;">type</span>           text  <span style="color: #64748b;">← 'signal' | 'info' | 'warning'</span></div>
+      <div><span style="color: #86efac;">title</span>          text</div>
+      <div><span style="color: #86efac;">body</span>           text</div>
+      <div><span style="color: #fde68a;">strategy_id</span>    uuid FK nullable</div>
+      <div><span style="color: #fde68a;">portfolio_id</span>   uuid FK nullable</div>
+      <div><span style="color: #86efac;">read</span>           boolean</div>
+      <div><span style="color: #86efac;">created_at</span>     timestamptz</div>
+    </div>
+  </div>
+
+  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; grid-column: 1 / -1;">
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+      <div style="width: 8px; height: 8px; border-radius: 50%; background: #64748b;"></div>
+      <span style="font-weight: 600; font-size: 14px;">price_cache</span>
+      <span style="font-size: 11px; color: var(--muted);">行情缓存，两个服务共享读写</span>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+      <div style="font-family: monospace; font-size: 11px; line-height: 1.9; color: var(--muted);">
+        <div><span style="color: #f472b6;">symbol</span>     text  <span style="color: #64748b;">← PK 联合索引</span></div>
+        <div><span style="color: #f472b6;">timeframe</span>  text  <span style="color: #64748b;">← '1d' | '1h' | '15m'</span></div>
+        <div><span style="color: #f472b6;">ts</span>         timestamptz  <span style="color: #64748b;">← PK 联合索引</span></div>
+        <div><span style="color: #86efac;">open high low close volume</span>  numeric</div>
+      </div>
+      <div style="font-size: 12px; color: var(--muted); padding-top: 4px;">
+        <div>📌 Worker 负责抓取并写入</div>
+        <div>📌 Web API 和回测引擎都从这里读</div>
+        <div>📌 15min 数据会随时间积累（解决 60 天限制）</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top: 16px; padding: 14px; background: var(--surface); border-left: 3px solid #7dd3fc; border-radius: 4px; font-size: 12px;">
+  <span style="color: #7dd3fc;">🔵 Phase 1</span> — strategies / backtests / price_cache
+  <span style="color: #f59e0b;">🟡 Phase 2</span> — portfolios / positions / trades / notifications
+</div>
+
+<p style="margin-top: 16px; font-size: 13px; color: var(--muted);">Schema 看起来合理吗？在终端告诉我。</p>

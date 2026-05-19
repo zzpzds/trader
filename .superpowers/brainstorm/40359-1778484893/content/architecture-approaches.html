@@ -1,0 +1,77 @@
+<h2>整体架构方案</h2>
+<p class="subtitle">云部署 + 长时任务（优化器）→ 需要后台任务队列。三种方案的核心差别在于如何处理这个问题。</p>
+
+<div class="options">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>单 Next.js 服务 + pg-boss 任务队列</h3>
+      <p style="color: var(--muted); font-size: 13px;">一个 Railway 服务跑所有东西，用 PostgreSQL 自带做任务队列</p>
+      <div style="background: var(--code-bg, #1a1a2e); border-radius: 6px; padding: 12px; margin: 10px 0; font-size: 12px; font-family: monospace;">
+        <div style="color: #7dd3fc;">Railway</div>
+        <div style="padding-left: 12px;">
+          <div>📦 next-app（Web + API + Worker 线程）</div>
+          <div>🗄️ PostgreSQL（数据 + 任务队列）</div>
+        </div>
+        <br>
+        <div style="color: #86efac;">用户触发优化 → pg-boss 入队 → Next.js 内 Worker Thread 消费</div>
+      </div>
+      <div class="pros-cons">
+        <div class="pros"><h4>优点</h4><ul><li>最简单，一个服务搞定</li><li>无需 Redis，成本低</li><li>部署维护最省心</li></ul></div>
+        <div class="cons"><h4>风险</h4><ul><li>Worker Thread 与 Web 共享内存，优化器跑满 CPU 时影响响应速度</li><li>单进程崩溃会中断进行中的优化任务</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Next.js Web + 独立 Worker 服务 <span style="font-size: 12px; color: #22c55e; font-weight: normal;">★ 推荐</span></h3>
+      <p style="color: var(--muted); font-size: 13px;">两个 Railway 服务，共享同一个 PostgreSQL，pg-boss 做协调</p>
+      <div style="background: var(--code-bg, #1a1a2e); border-radius: 6px; padding: 12px; margin: 10px 0; font-size: 12px; font-family: monospace;">
+        <div style="color: #7dd3fc;">Railway</div>
+        <div style="padding-left: 12px;">
+          <div>📦 next-app（Web + API）← 用户交互</div>
+          <div>📦 worker（Node.js）← 优化器 + 信号监控</div>
+          <div>🗄️ PostgreSQL（共享数据 + pg-boss 队列）</div>
+        </div>
+        <br>
+        <div style="color: #86efac;">Web → pg-boss 入队 → Worker 独立消费 → 结果写 DB → Web 轮询进度</div>
+      </div>
+      <div class="pros-cons">
+        <div class="pros"><h4>优点</h4><ul><li>Web 与计算完全隔离，互不影响</li><li>Worker 崩溃不影响用户界面</li><li>信号监控 24/7 独立运行</li><li>无需 Redis（pg-boss 用 PostgreSQL）</li></ul></div>
+        <div class="cons"><h4>代价</h4><ul><li>两个服务，Railway 费用稍高约 $10/月</li><li>部署配置略复杂</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Next.js + Python 优化器微服务</h3>
+      <p style="color: var(--muted); font-size: 13px;">Worker 改用 Python + optuna，获得最佳贝叶斯优化质量</p>
+      <div style="background: var(--code-bg, #1a1a2e); border-radius: 6px; padding: 12px; margin: 10px 0; font-size: 12px; font-family: monospace;">
+        <div style="color: #7dd3fc;">Railway</div>
+        <div style="padding-left: 12px;">
+          <div>📦 next-app（Web + API）</div>
+          <div>📦 py-optimizer（Python FastAPI + optuna）</div>
+          <div>📦 ts-worker（Node.js，信号监控）</div>
+          <div>🗄️ PostgreSQL</div>
+        </div>
+      </div>
+      <div class="pros-cons">
+        <div class="pros"><h4>优点</h4><ul><li>optuna 是工业级贝叶斯优化，质量最高</li><li>Python ML 生态随时可扩展</li></ul></div>
+        <div class="cons"><h4>风险</h4><ul><li>三个服务，复杂度跳升</li><li>需维护两套依赖（TS + Python）</li><li>回测逻辑可能需要在两端重复实现</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top: 20px; padding: 14px; background: var(--surface); border-left: 3px solid #f59e0b; border-radius: 4px;">
+  <div style="font-size: 12px; color: #f59e0b; font-weight: 600; margin-bottom: 6px;">⚠️ 关键可行性说明</div>
+  <div style="font-size: 13px; color: var(--muted);">方案 B 中的贝叶斯优化需在 TS 中自实现（约 300-400 行），TS 无现成的 Gaussian Process 库。这是整个项目技术风险最高的部分，但对于交易策略参数搜索（5-10 个参数，每次评估 &lt;500ms）是完全可行的。</div>
+</div>
+
+<p style="margin-top: 16px; font-size: 13px; color: var(--muted);">在浏览器点击选择，或直接在终端回复。</p>

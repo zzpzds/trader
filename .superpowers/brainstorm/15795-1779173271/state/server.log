@@ -1,0 +1,5 @@
+{"type":"server-started","port":53851,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:53851","screen_dir":"/Users/didi/code/trader/.superpowers/brainstorm/15795-1779173271/content","state_dir":"/Users/didi/code/trader/.superpowers/brainstorm/15795-1779173271/state"}
+{"type":"screen-added","file":"/Users/didi/code/trader/.superpowers/brainstorm/15795-1779173271/content/trigger-placement.html"}
+{"source":"user-event","type":"click","text":"←\n          QQQ Momentum\n          QQQ\n          SPY\n          ▶ 立即分析\n        \n        \n          持仓\n          策略描述\n          原始脚本\n          最近分析\n        \n        持仓内容...\n      \n    \n    \n      A — 页面顶部 Header\n      按钮固定在策略标题行右侧，任何 Tab 下都能看到并触发，无需先切换到分析 Tab。","choice":"a","id":null,"timestamp":1779173390614}
+{"type":"screen-added","file":"/Users/didi/code/trader/.superpowers/brainstorm/15795-1779173271/content/waiting-1.html"}
+{"type":"server-stopped","reason":"idle timeout"}

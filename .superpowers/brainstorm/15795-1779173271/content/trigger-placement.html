@@ -1,0 +1,99 @@
+<h2>手动触发监控：按钮放在哪里？</h2>
+<p class="subtitle">选择最符合你使用习惯的入口位置</p>
+
+<div class="cards">
+
+  <!-- Option A -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:sans-serif;padding:12px;background:#fff;border-radius:6px;border:1px solid #e5e7eb;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <span style="font-size:12px;color:#6b7280;">←</span>
+          <span style="font-weight:700;font-size:14px;">QQQ Momentum</span>
+          <span style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;padding:2px 6px;font-size:10px;">QQQ</span>
+          <span style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;padding:2px 6px;font-size:10px;">SPY</span>
+          <span style="margin-left:auto;background:#18181b;color:#fff;border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer;">▶ 立即分析</span>
+        </div>
+        <div style="display:flex;gap:4px;border-bottom:1px solid #e5e7eb;padding-bottom:8px;margin-bottom:8px;">
+          <span style="padding:4px 10px;font-size:11px;border-bottom:2px solid #18181b;font-weight:500;">持仓</span>
+          <span style="padding:4px 10px;font-size:11px;color:#9ca3af;">策略描述</span>
+          <span style="padding:4px 10px;font-size:11px;color:#9ca3af;">原始脚本</span>
+          <span style="padding:4px 10px;font-size:11px;color:#9ca3af;">最近分析</span>
+        </div>
+        <div style="color:#9ca3af;font-size:11px;text-align:center;padding:12px 0;">持仓内容...</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — 页面顶部 Header</h3>
+      <p>按钮固定在策略标题行右侧，任何 Tab 下都能看到并触发，无需先切换到分析 Tab。</p>
+    </div>
+  </div>
+
+  <!-- Option B -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:sans-serif;padding:12px;background:#fff;border-radius:6px;border:1px solid #e5e7eb;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <span style="font-size:12px;color:#6b7280;">←</span>
+          <span style="font-weight:700;font-size:14px;">QQQ Momentum</span>
+          <span style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;padding:2px 6px;font-size:10px;">QQQ</span>
+        </div>
+        <div style="display:flex;gap:4px;border-bottom:1px solid #e5e7eb;padding-bottom:8px;margin-bottom:8px;">
+          <span style="padding:4px 10px;font-size:11px;color:#9ca3af;">持仓</span>
+          <span style="padding:4px 10px;font-size:11px;color:#9ca3af;">策略描述</span>
+          <span style="padding:4px 10px;font-size:11px;color:#9ca3af;">原始脚本</span>
+          <span style="padding:4px 10px;font-size:11px;border-bottom:2px solid #18181b;font-weight:500;">最近分析</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0 10px;">
+          <span style="font-size:11px;color:#6b7280;">2 条历史记录</span>
+          <span style="background:#18181b;color:#fff;border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer;">▶ 立即分析</span>
+        </div>
+        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:4px;padding:8px;font-size:10px;color:#374151;">2026-05-18 &nbsp; <span style="background:#d1fae5;color:#065f46;padding:1px 4px;border-radius:3px;">completed</span></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — 最近分析 Tab 内</h3>
+      <p>按钮位于"最近分析"Tab 内容区顶部，与历史运行记录紧邻，语义最清晰，触发后结果就在下方出现。</p>
+    </div>
+  </div>
+
+  <!-- Option C -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:sans-serif;padding:12px;background:#fff;border-radius:6px;border:1px solid #e5e7eb;">
+        <div style="margin-bottom:8px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:5px;">
+            <div>
+              <div style="font-size:12px;font-weight:600;">QQQ Momentum</div>
+              <div style="display:flex;gap:4px;margin-top:3px;">
+                <span style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:3px;padding:1px 5px;font-size:9px;">QQQ</span>
+                <span style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:3px;padding:1px 5px;font-size:9px;">SPY</span>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:9px;color:#9ca3af;">2026-05-15</span>
+              <span style="background:#18181b;color:#fff;border-radius:4px;padding:3px 7px;font-size:9px;cursor:pointer;">▶</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:5px;">
+          <div>
+            <div style="font-size:12px;font-weight:600;">SPY Buy & Hold</div>
+            <div style="display:flex;gap:4px;margin-top:3px;">
+              <span style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:3px;padding:1px 5px;font-size:9px;">SPY</span>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:9px;color:#9ca3af;">2026-05-10</span>
+            <span style="background:#18181b;color:#fff;border-radius:4px;padding:3px 7px;font-size:9px;cursor:pointer;">▶</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — 策略列表卡片</h3>
+      <p>在策略列表每张卡片上直接放触发按钮，不用进入详情页就能触发，适合批量快速触发多个策略。</p>
+    </div>
+  </div>
+
+</div>

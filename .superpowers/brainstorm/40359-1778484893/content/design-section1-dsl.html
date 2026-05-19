@@ -1,0 +1,115 @@
+<h2>设计第一节：策略 DSL 数据结构</h2>
+<p class="subtitle">所有模块共用的核心类型定义。AI 生成它，回测引擎执行它，优化器修改它。</p>
+
+<div class="section">
+  <h3>支持的技术指标</h3>
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+      <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">SMA / EMA</div>
+      <div style="font-family: monospace; font-size: 11px; color: var(--muted);">params: { period: number }</div>
+      <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">输出：单值</div>
+    </div>
+    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+      <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">MACD</div>
+      <div style="font-family: monospace; font-size: 11px; color: var(--muted);">params: { fast, slow, signal }</div>
+      <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">输出：.macd .signal .histogram</div>
+    </div>
+    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+      <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">RSI</div>
+      <div style="font-family: monospace; font-size: 11px; color: var(--muted);">params: { period: number }</div>
+      <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">输出：单值 (0-100)</div>
+    </div>
+    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+      <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">BBANDS</div>
+      <div style="font-family: monospace; font-size: 11px; color: var(--muted);">params: { period, stdDev }</div>
+      <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">输出：.upper .middle .lower</div>
+    </div>
+    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+      <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">VOLUME_MA</div>
+      <div style="font-family: monospace; font-size: 11px; color: var(--muted);">params: { period: number }</div>
+      <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">成交量均线，单值</div>
+    </div>
+    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 12px; border-style: dashed;">
+      <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color: var(--muted);">更多指标</div>
+      <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">Phase 2 按需扩展（ATR、VWAP 等）</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>条件类型（入场用 AND，出场用 OR）</h3>
+  <div style="background: var(--code-bg, #0f172a); border-radius: 8px; padding: 16px; font-family: monospace; font-size: 12px; line-height: 1.8;">
+    <div style="color: #94a3b8;">// 入场条件 — 所有条件同时满足才触发（AND 逻辑）</div>
+    <div><span style="color: #f472b6;">type</span> <span style="color: #7dd3fc;">EntryCondition</span> =</div>
+    <div style="padding-left: 16px;">
+      <div>| { <span style="color: #86efac;">type</span>: <span style="color: #fde68a;">'crossover'</span>  ; <span style="color: #86efac;">a</span>: string; <span style="color: #86efac;">b</span>: string | number } <span style="color: #94a3b8;">// a 上穿 b</span></div>
+      <div>| { <span style="color: #86efac;">type</span>: <span style="color: #fde68a;">'crossunder'</span> ; <span style="color: #86efac;">a</span>: string; <span style="color: #86efac;">b</span>: string | number } <span style="color: #94a3b8;">// a 下穿 b</span></div>
+      <div>| { <span style="color: #86efac;">type</span>: <span style="color: #fde68a;">'above'</span>      ; <span style="color: #86efac;">a</span>: string; <span style="color: #86efac;">b</span>: string | number } <span style="color: #94a3b8;">// a &gt; b</span></div>
+      <div>| { <span style="color: #86efac;">type</span>: <span style="color: #fde68a;">'below'</span>      ; <span style="color: #86efac;">a</span>: string; <span style="color: #86efac;">b</span>: string | number } <span style="color: #94a3b8;">// a &lt; b</span></div>
+      <div>| { <span style="color: #86efac;">type</span>: <span style="color: #fde68a;">'pct_above'</span>  ; <span style="color: #86efac;">a</span>: string; <span style="color: #86efac;">b</span>: string; <span style="color: #86efac;">pct</span>: number } <span style="color: #94a3b8;">// a &gt; b×(1+pct) 如成交量放大</span></div>
+    </div>
+    <br>
+    <div style="color: #94a3b8;">// 出场条件 — 任意一个满足即触发（OR 逻辑）</div>
+    <div><span style="color: #f472b6;">type</span> <span style="color: #7dd3fc;">ExitCondition</span> =</div>
+    <div style="padding-left: 16px;">
+      <div>| EntryCondition</div>
+      <div>| { <span style="color: #86efac;">type</span>: <span style="color: #fde68a;">'stop_loss'</span>     ; <span style="color: #86efac;">pct</span>: number } <span style="color: #94a3b8;">// 从入场价下跌 X%</span></div>
+      <div>| { <span style="color: #86efac;">type</span>: <span style="color: #fde68a;">'take_profit'</span>    ; <span style="color: #86efac;">pct</span>: number } <span style="color: #94a3b8;">// 从入场价上涨 X%</span></div>
+      <div>| { <span style="color: #86efac;">type</span>: <span style="color: #fde68a;">'trailing_stop'</span>  ; <span style="color: #86efac;">pct</span>: number } <span style="color: #94a3b8;">// 动态追踪止损</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>完整策略结构</h3>
+  <div style="background: var(--code-bg, #0f172a); border-radius: 8px; padding: 16px; font-family: monospace; font-size: 12px; line-height: 1.8;">
+    <div><span style="color: #f472b6;">interface</span> <span style="color: #7dd3fc;">Strategy</span> {</div>
+    <div style="padding-left: 16px;">
+      <div><span style="color: #86efac;">id</span>: string</div>
+      <div><span style="color: #86efac;">name</span>: string</div>
+      <div><span style="color: #86efac;">symbol</span>: string                        <span style="color: #94a3b8;">// "AAPL"</span></div>
+      <div><span style="color: #86efac;">timeframe</span>: <span style="color: #fde68a;">'1d'</span> | <span style="color: #fde68a;">'1h'</span> | <span style="color: #fde68a;">'15m'</span></div>
+      <div><span style="color: #86efac;">indicators</span>: Indicator[]               <span style="color: #94a3b8;">// 定义并命名指标</span></div>
+      <div><span style="color: #86efac;">entryConditions</span>: EntryCondition[]    <span style="color: #94a3b8;">// 全部满足才买入</span></div>
+      <div><span style="color: #86efac;">exitConditions</span>: ExitCondition[]      <span style="color: #94a3b8;">// 任一满足即卖出</span></div>
+      <div><span style="color: #86efac;">positionSizing</span>: { type: <span style="color: #fde68a;">'fixed_pct'</span>; value: number }</div>
+      <div><span style="color: #86efac;">executionPrice</span>: <span style="color: #fde68a;">'next_open'</span> | <span style="color: #fde68a;">'current_close'</span></div>
+    </div>
+    <div>}</div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>真实例子："均线 + RSI 过滤策略"</h3>
+  <div style="background: var(--code-bg, #0f172a); border-radius: 8px; padding: 16px; font-family: monospace; font-size: 11px; line-height: 1.7; color: #e2e8f0;">
+    <div>{</div>
+    <div style="padding-left: 16px;">
+      <div><span style="color: #86efac;">"symbol"</span>: <span style="color: #fde68a;">"AAPL"</span>, <span style="color: #86efac;">"timeframe"</span>: <span style="color: #fde68a;">"1d"</span>,</div>
+      <div><span style="color: #86efac;">"indicators"</span>: [</div>
+      <div style="padding-left: 16px;">
+        <div>{ <span style="color: #86efac;">"id"</span>: <span style="color: #fde68a;">"ma_fast"</span>, <span style="color: #86efac;">"type"</span>: <span style="color: #fde68a;">"SMA"</span>, <span style="color: #86efac;">"params"</span>: { <span style="color: #86efac;">"period"</span>: <span style="color: #fb923c;">5</span> } },</div>
+        <div>{ <span style="color: #86efac;">"id"</span>: <span style="color: #fde68a;">"ma_slow"</span>, <span style="color: #86efac;">"type"</span>: <span style="color: #fde68a;">"SMA"</span>, <span style="color: #86efac;">"params"</span>: { <span style="color: #86efac;">"period"</span>: <span style="color: #fb923c;">20</span> } },</div>
+        <div>{ <span style="color: #86efac;">"id"</span>: <span style="color: #fde68a;">"rsi"</span>,     <span style="color: #86efac;">"type"</span>: <span style="color: #fde68a;">"RSI"</span>, <span style="color: #86efac;">"params"</span>: { <span style="color: #86efac;">"period"</span>: <span style="color: #fb923c;">14</span> } }</div>
+      </div>
+      <div>],</div>
+      <div><span style="color: #86efac;">"entryConditions"</span>: [</div>
+      <div style="padding-left: 16px;">
+        <div>{ <span style="color: #86efac;">"type"</span>: <span style="color: #fde68a;">"crossover"</span>, <span style="color: #86efac;">"a"</span>: <span style="color: #fde68a;">"ma_fast"</span>, <span style="color: #86efac;">"b"</span>: <span style="color: #fde68a;">"ma_slow"</span> }, <span style="color: #94a3b8;">// AND</span></div>
+        <div>{ <span style="color: #86efac;">"type"</span>: <span style="color: #fde68a;">"below"</span>,     <span style="color: #86efac;">"a"</span>: <span style="color: #fde68a;">"rsi"</span>,     <span style="color: #86efac;">"b"</span>: <span style="color: #fb923c;">70</span> }</div>
+      </div>
+      <div>],</div>
+      <div><span style="color: #86efac;">"exitConditions"</span>: [</div>
+      <div style="padding-left: 16px;">
+        <div>{ <span style="color: #86efac;">"type"</span>: <span style="color: #fde68a;">"crossunder"</span>, <span style="color: #86efac;">"a"</span>: <span style="color: #fde68a;">"ma_fast"</span>, <span style="color: #86efac;">"b"</span>: <span style="color: #fde68a;">"ma_slow"</span> }, <span style="color: #94a3b8;">// OR</span></div>
+        <div>{ <span style="color: #86efac;">"type"</span>: <span style="color: #fde68a;">"stop_loss"</span>,  <span style="color: #86efac;">"pct"</span>: <span style="color: #fb923c;">0.08</span> },</div>
+        <div>{ <span style="color: #86efac;">"type"</span>: <span style="color: #fde68a;">"take_profit"</span>, <span style="color: #86efac;">"pct"</span>: <span style="color: #fb923c;">0.20</span> }</div>
+      </div>
+      <div>],</div>
+      <div><span style="color: #86efac;">"positionSizing"</span>: { <span style="color: #86efac;">"type"</span>: <span style="color: #fde68a;">"fixed_pct"</span>, <span style="color: #86efac;">"value"</span>: <span style="color: #fb923c;">0.1</span> },</div>
+      <div><span style="color: #86efac;">"executionPrice"</span>: <span style="color: #fde68a;">"next_open"</span></div>
+    </div>
+    <div>}</div>
+  </div>
+</div>
+
+<p style="font-size: 13px; color: var(--muted);">这个结构看起来合理吗？有没有你常用的策略类型无法用这个结构表达的？在终端告诉我。</p>

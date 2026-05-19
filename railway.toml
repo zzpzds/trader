@@ -1,0 +1,6 @@
+[build]
+builder = "nixpacks"
+buildCommand = "npm run build -w apps/$RAILWAY_SERVICE_NAME"
+
+[deploy]
+startCommand = "npm run start -w apps/$RAILWAY_SERVICE_NAME"
