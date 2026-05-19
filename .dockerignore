@@ -1,0 +1,10 @@
+node_modules
+.git
+.next
+dist
+.env
+docs
+openspec
+.claude
+.superpowers
+.playwright-cli
