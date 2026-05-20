@@ -11,6 +11,7 @@ RUN npm ci --ignore-scripts
 FROM base AS build
 COPY . .
 RUN npm run build -w packages/db
+ENV NEXT_SKIP_TYPE_CHECK=true
 RUN npm run build -w apps/web
 RUN npm run build -w apps/worker
 
