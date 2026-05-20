@@ -57,7 +57,7 @@ export interface ParsedStrategy {
 
 export async function parseStrategyScript(script: string): Promise<ParsedStrategy> {
   const response = await anthropic.messages.create({
-    model: "glm-5.1",
+    model: process.env.ANTHROPIC_MODEL ?? "glm-5.1",
     max_tokens: 4096,
     system: SYSTEM_PROMPT,
     tools: [parseToolSchema],

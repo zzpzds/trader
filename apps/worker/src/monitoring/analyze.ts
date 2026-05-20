@@ -67,7 +67,7 @@ export function createAnalyzer(client?: Anthropic) {
       .join("\n");
 
     const response = await anthropic.messages.create({
-      model: "glm-5.1",
+      model: process.env.ANTHROPIC_MODEL ?? "glm-5.1",
       max_tokens: 4096,
       tools: [reportToolSchema],
       messages: [
