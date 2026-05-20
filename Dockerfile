@@ -13,7 +13,6 @@ COPY . .
 RUN npm run build -w packages/db
 RUN npm run build -w apps/web
 RUN npm run build -w apps/worker
-RUN npm prune --production
 
 # ---- Web target: Next.js standalone ----
 FROM node:20-alpine AS web
