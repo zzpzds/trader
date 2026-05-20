@@ -48,6 +48,7 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL}
+      FINNHUB_API_KEY: ${FINNHUB_API_KEY}
     mem_limit: 384m
     command: node --max-old-space-size=192 dist/index.js
 
