@@ -1,6 +1,6 @@
 import { eq, and } from "drizzle-orm";
 import { strategies, positions, positionLots, monitoringRuns, notifications } from "@trader/db";
-import { fetchPrices } from "./finnhub-fetch.js";
+import { fetchPrices } from "./alphavantage-fetch.js";
 import { createAnalyzer, type PositionInfo } from "./analyze.js";
 import type { drizzle } from "drizzle-orm/postgres-js";
 import type * as schema from "@trader/db";
