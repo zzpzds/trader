@@ -22,7 +22,7 @@ export default function RootLayout({
     <html lang="zh" className={`${geistSans.variable} h-full`}>
       <body className="h-full flex bg-background text-foreground antialiased">
         <Sidebar />
-        <main className="flex-1 overflow-hidden">{children}</main>
+        <main className="flex-1 overflow-y-auto">{children}</main>
       </body>
     </html>
   );

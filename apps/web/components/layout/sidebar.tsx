@@ -1,10 +1,10 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, BarChart3, Eye } from "lucide-react";
+import { BookOpen, BarChart3, Eye, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { NotificationPanel } from "./notification-panel";
 
 const navItems = [
   {
@@ -22,16 +22,34 @@ const navItems = [
     label: "监控中心",
     icon: Eye,
   },
+  {
+    href: "/notifications",
+    label: "通知",
+    icon: Bell,
+  },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    async function fetchUnread() {
+      try {
+        const res = await fetch("/api/notifications?status=unread");
+        const data = await res.json();
+        setUnreadCount(data.unreadCount ?? 0);
+      } catch {
+        // ignore
+      }
+    }
+    fetchUnread();
+  }, [pathname]);
 
   return (
     <aside className="w-56 shrink-0 border-r bg-muted/20 flex flex-col h-full">
-      <div className="px-4 py-5 border-b flex items-center justify-between">
+      <div className="px-4 py-5 border-b">
         <span className="font-bold text-lg tracking-tight">Trader</span>
-        <NotificationPanel />
       </div>
       <nav className="flex-1 p-3 space-y-1">
         {navItems.map(({ href, label, icon: Icon }) => {
@@ -49,6 +67,11 @@ export function Sidebar() {
             >
               <Icon size={16} />
               {label}
+              {href === "/notifications" && unreadCount > 0 && (
+                <span className="ml-auto bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                  {unreadCount}
+                </span>
+              )}
             </Link>
           );
         })}

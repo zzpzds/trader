@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import ReactMarkdown from "react-markdown";
 
 interface MonitoringRun {
@@ -22,6 +22,9 @@ interface MonitoringRun {
 }
 
 export default function MonitoringPage() {
+  const searchParams = useSearchParams();
+  const runIdParam = searchParams.get("runId");
+
   const [runs, setRuns] = useState<MonitoringRun[]>([]);
   const [strategyFilter, setStrategyFilter] = useState<string>("all");
   const [strategies, setStrategies] = useState<Array<{ id: string; name: string }>>([]);
@@ -39,15 +42,18 @@ export default function MonitoringPage() {
   useEffect(() => {
     fetch("/api/strategies")
       .then((r) => r.json())
-      .then(setStrategies);
+      .then((data) => { if (Array.isArray(data)) setStrategies(data); });
   }, []);
 
   useEffect(() => {
     const params = strategyFilter !== "all" ? `?strategyId=${strategyFilter}` : "";
     fetch(`/api/monitoring/runs${params}`)
       .then((r) => r.json())
-      .then(setRuns);
-  }, [strategyFilter]);
+      .then((data) => {
+        setRuns(data);
+        if (runIdParam) setExpandedRun(runIdParam);
+      });
+  }, [strategyFilter, runIdParam]);
 
   const stats = {
     total: runs.length,
