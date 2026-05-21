@@ -90,7 +90,11 @@ export default function MonitoringPage() {
       <div className="flex gap-3 mb-4">
         <Select value={strategyFilter} onValueChange={(v) => setStrategyFilter(v ?? "all")}>
           <SelectTrigger className="w-48">
-            <SelectValue placeholder="按策略过滤" />
+            <SelectValue>
+              {strategyFilter === "all"
+                ? "全部策略"
+                : (strategies.find((s) => s.id === strategyFilter)?.name ?? "按策略过滤")}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">全部策略</SelectItem>
