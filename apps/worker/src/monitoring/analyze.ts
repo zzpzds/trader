@@ -73,19 +73,19 @@ export function createAnalyzer(client?: Anthropic) {
       messages: [
         {
           role: "user",
-          content: `Analyze the following trading strategy and its current positions. Determine if any action items are needed based on the strategy rules.
+          content: `请分析以下交易策略及其当前持仓情况，根据策略规则判断是否需要采取操作。请用中文输出分析报告。
 
-## Strategy: ${strategyName}
+## 策略：${strategyName}
 
 ${strategyContent}
 
-## Current Positions
+## 当前持仓
 ${positionSummary}
 
-## Recent Price Data
+## 近期价格数据
 ${recentBars}
 
-Please analyze whether the current market conditions trigger any strategy rules (entry, exit, position adjustments) and provide your assessment.`,
+请分析当前市场状况是否触发了策略规则（入场、出场、仓位调整），并给出你的判断。`,
         },
       ],
     });
