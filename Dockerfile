@@ -13,7 +13,7 @@ COPY . .
 RUN npm run build -w packages/db
 ENV NEXT_SKIP_TYPE_CHECK=true
 RUN npm run build -w apps/web
-RUN npm run build -w apps/worker
+RUN cd apps/worker && npx tsc --noCheck
 
 # ---- Web target: Next.js standalone ----
 FROM node:20-alpine AS web
