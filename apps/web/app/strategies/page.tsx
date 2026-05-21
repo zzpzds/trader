@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface Strategy {
   id: string;
@@ -212,7 +213,7 @@ export default function StrategiesPage() {
                   <div>
                     <label className="text-sm font-medium">策略描述预览</label>
                     <div className="mt-1 p-3 bg-muted rounded-md text-sm max-h-[400px] overflow-y-auto prose prose-sm">
-                      <ReactMarkdown>{parsed.content}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{parsed.content}</ReactMarkdown>
                     </div>
                   </div>
                 </div>

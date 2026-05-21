@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface MonitoringRun {
   id: string;
@@ -169,7 +170,7 @@ function MonitoringContent() {
                 <div className="mt-3 pt-3 border-t">
                   {run.status === "completed" && run.analysis && (
                     <div className="prose prose-sm max-w-none">
-                      <ReactMarkdown>{run.analysis}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{run.analysis}</ReactMarkdown>
                     </div>
                   )}
                   {run.status === "failed" && run.error && (

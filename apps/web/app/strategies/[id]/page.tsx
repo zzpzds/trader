@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface Strategy {
   id: string;
@@ -205,7 +206,7 @@ export default function StrategyDetailPage() {
       <div className="flex-1 overflow-y-auto min-h-0">
       {tab === "description" && (
         <div className="prose prose-sm max-w-none">
-          <ReactMarkdown>{strategy.content}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{strategy.content}</ReactMarkdown>
         </div>
       )}
 
@@ -360,7 +361,7 @@ export default function StrategyDetailPage() {
                 </div>
                 {run.status === "completed" && run.analysis && (
                   <div className="prose prose-sm max-w-none mt-2">
-                    <ReactMarkdown>{run.analysis}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{run.analysis}</ReactMarkdown>
                   </div>
                 )}
                 {run.status === "failed" && run.error && (
