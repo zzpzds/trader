@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,14 @@ interface MonitoringRun {
 }
 
 export default function MonitoringPage() {
+  return (
+    <Suspense>
+      <MonitoringContent />
+    </Suspense>
+  );
+}
+
+function MonitoringContent() {
   const searchParams = useSearchParams();
   const runIdParam = searchParams.get("runId");
 
