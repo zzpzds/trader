@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Trash2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import ReactMarkdown from "react-markdown";
@@ -25,6 +26,15 @@ export default function MonitoringPage() {
   const [strategyFilter, setStrategyFilter] = useState<string>("all");
   const [strategies, setStrategies] = useState<Array<{ id: string; name: string }>>([]);
   const [expandedRun, setExpandedRun] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function deleteRun(id: string) {
+    setDeletingId(id);
+    await fetch(`/api/monitoring/runs/${id}`, { method: "DELETE" });
+    setRuns((prev) => prev.filter((r) => r.id !== id));
+    if (expandedRun === id) setExpandedRun(null);
+    setDeletingId(null);
+  }
 
   useEffect(() => {
     fetch("/api/strategies")
@@ -109,7 +119,7 @@ export default function MonitoringPage() {
                   <span className="text-sm font-medium">{run.runDate}</span>
                   <span className="text-sm text-muted-foreground">{run.strategyName}</span>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
                   <Badge
                     variant={
                       run.status === "completed"
@@ -126,6 +136,15 @@ export default function MonitoringPage() {
                       操作建议
                     </Badge>
                   )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    disabled={deletingId === run.id}
+                    onClick={(e) => { e.stopPropagation(); deleteRun(run.id); }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
               {expandedRun === run.id && (
