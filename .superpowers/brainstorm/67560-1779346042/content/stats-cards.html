@@ -1,0 +1,94 @@
+<h2>通知页面的统计卡片</h2>
+<p class="subtitle">顶部卡片显示哪些数字？参考监控中心的4卡片设计</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="padding:12px;background:#f9fafb;border-radius:6px;">
+        <div style="font-weight:bold;font-size:13px;margin-bottom:10px;">通知中心</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">
+          <div style="background:white;border:1px solid #e5e7eb;border-radius:6px;padding:8px;text-align:center;">
+            <div style="font-size:20px;font-weight:bold;">12</div>
+            <div style="font-size:10px;color:#6b7280;">全部通知</div>
+          </div>
+          <div style="background:white;border:1px solid #e5e7eb;border-radius:6px;padding:8px;text-align:center;">
+            <div style="font-size:20px;font-weight:bold;color:#6366f1;">3</div>
+            <div style="font-size:10px;color:#6b7280;">未读</div>
+          </div>
+          <div style="background:white;border:1px solid #e5e7eb;border-radius:6px;padding:8px;text-align:center;">
+            <div style="font-size:20px;font-weight:bold;color:#9ca3af;">9</div>
+            <div style="font-size:10px;color:#6b7280;">已读</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — 3张卡片：全部 / 未读 / 已读</h3>
+      <p>简洁，核心数据一目了然</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="padding:12px;background:#f9fafb;border-radius:6px;">
+        <div style="font-weight:bold;font-size:13px;margin-bottom:10px;">通知中心</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;">
+          <div style="background:white;border:1px solid #e5e7eb;border-radius:6px;padding:7px;text-align:center;">
+            <div style="font-size:18px;font-weight:bold;">12</div>
+            <div style="font-size:9px;color:#6b7280;">全部</div>
+          </div>
+          <div style="background:white;border:1px solid #e5e7eb;border-radius:6px;padding:7px;text-align:center;">
+            <div style="font-size:18px;font-weight:bold;color:#6366f1;">3</div>
+            <div style="font-size:9px;color:#6b7280;">未读</div>
+          </div>
+          <div style="background:white;border:1px solid #e5e7eb;border-radius:6px;padding:7px;text-align:center;">
+            <div style="font-size:18px;font-weight:bold;color:#9ca3af;">9</div>
+            <div style="font-size:9px;color:#6b7280;">已读</div>
+          </div>
+          <div style="background:white;border:1px solid #e5e7eb;border-radius:6px;padding:7px;text-align:center;">
+            <div style="font-size:18px;font-weight:bold;color:#f97316;">4</div>
+            <div style="font-size:9px;color:#6b7280;">操作建议</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — 4张卡片：全部 / 未读 / 已读 / 操作建议（和监控中心一致）</h3>
+      <p>与监控中心完全对齐，操作建议通知单独计数，突出需要注意的消息</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="padding:12px;background:#f9fafb;border-radius:6px;">
+        <div style="font-weight:bold;font-size:13px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
+          通知中心
+          <span style="font-size:10px;color:#6b7280;font-weight:normal;">3 条未读</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:6px;">
+          <div style="background:white;border:1px solid #e5e7eb;border-radius:6px;padding:8px;text-align:center;">
+            <div style="font-size:20px;font-weight:bold;">12</div>
+            <div style="font-size:10px;color:#6b7280;">全部</div>
+          </div>
+          <div style="background:white;border:1px solid #e5e7eb;border-radius:6px;padding:8px;text-align:center;">
+            <div style="font-size:20px;font-weight:bold;color:#6366f1;">3</div>
+            <div style="font-size:10px;color:#6b7280;">未读</div>
+          </div>
+          <div style="background:white;border:1px solid #e5e7eb;border-radius:6px;padding:8px;text-align:center;">
+            <div style="font-size:20px;font-weight:bold;color:#9ca3af;">9</div>
+            <div style="font-size:10px;color:#6b7280;">已读</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <div style="flex:1;background:#6366f1;color:white;border-radius:4px;padding:5px;text-align:center;font-size:10px;font-weight:500;">全部标记已读</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — 3张卡片 + 快捷操作按钮</h3>
+      <p>卡片下方直接放"全部标记已读"按钮，操作更顺手（当前功能只有这一个批量操作）</p>
+    </div>
+  </div>
+
+</div>

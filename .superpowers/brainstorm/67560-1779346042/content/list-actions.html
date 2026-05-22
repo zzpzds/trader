@@ -1,0 +1,114 @@
+<h2>通知列表的操作功能</h2>
+<p class="subtitle">每条通知支持哪些操作？过滤器需要吗？</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="padding:12px;background:#f9fafb;border-radius:6px;font-size:11px;">
+        <div style="display:flex;gap:6px;margin-bottom:8px;">
+          <div style="background:white;border:1px solid #6366f1;color:#6366f1;border-radius:4px;padding:3px 8px;font-size:10px;">全部</div>
+          <div style="background:white;border:1px solid #e5e7eb;border-radius:4px;padding:3px 8px;font-size:10px;">未读</div>
+          <div style="background:white;border:1px solid #e5e7eb;border-radius:4px;padding:3px 8px;font-size:10px;">已读</div>
+        </div>
+        <div style="background:#eff6ff;border:1px solid #e5e7eb;border-radius:6px;padding:8px;margin-bottom:4px;border-left:3px solid #6366f1;">
+          <div style="display:flex;justify-content:space-between;align-items:start;">
+            <div>
+              <div style="font-weight:600;">策略A 触发买入信号</div>
+              <div style="color:#6b7280;margin-top:2px;">10分钟前 · 策略A</div>
+            </div>
+            <div style="display:flex;gap:4px;align-items:center;">
+              <span style="background:#f97316;color:white;border-radius:3px;padding:1px 5px;font-size:9px;">操作建议</span>
+              <span style="color:#9ca3af;cursor:pointer;">🗑</span>
+            </div>
+          </div>
+        </div>
+        <div style="background:white;border:1px solid #e5e7eb;border-radius:6px;padding:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:start;">
+            <div>
+              <div style="font-weight:500;color:#6b7280;">监控运行完成</div>
+              <div style="color:#9ca3af;margin-top:2px;">1小时前 · 策略B</div>
+            </div>
+            <span style="color:#9ca3af;cursor:pointer;">🗑</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — 读状态过滤 + 每条可删除</h3>
+      <p>顶部Tab切换全部/未读/已读，每条通知右侧有删除按钮，和监控中心一致</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="padding:12px;background:#f9fafb;border-radius:6px;font-size:11px;">
+        <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;">
+          <select style="border:1px solid #e5e7eb;border-radius:4px;padding:3px 6px;font-size:10px;background:white;">
+            <option>全部策略</option>
+          </select>
+          <select style="border:1px solid #e5e7eb;border-radius:4px;padding:3px 6px;font-size:10px;background:white;">
+            <option>全部状态</option>
+          </select>
+        </div>
+        <div style="background:#eff6ff;border:1px solid #e5e7eb;border-radius:6px;padding:8px;margin-bottom:4px;border-left:3px solid #6366f1;">
+          <div style="display:flex;justify-content:space-between;align-items:start;">
+            <div>
+              <div style="font-weight:600;">策略A 触发买入信号</div>
+              <div style="color:#6b7280;margin-top:2px;">10分钟前</div>
+            </div>
+            <span style="color:#9ca3af;cursor:pointer;">🗑</span>
+          </div>
+        </div>
+        <div style="background:white;border:1px solid #e5e7eb;border-radius:6px;padding:8px;">
+          <div style="display:flex;justify-content:space-between;">
+            <div style="color:#6b7280;">监控运行完成</div>
+            <span style="color:#9ca3af;cursor:pointer;">🗑</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — 下拉过滤（按策略 + 按状态）+ 每条可删除</h3>
+      <p>与监控中心相同的 Select 过滤器风格，按策略和读状态筛选</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="padding:12px;background:#f9fafb;border-radius:6px;font-size:11px;">
+        <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;">
+          <select style="border:1px solid #e5e7eb;border-radius:4px;padding:3px 6px;font-size:10px;background:white;">
+            <option>全部策略</option>
+          </select>
+        </div>
+        <div style="background:#eff6ff;border:1px solid #e5e7eb;border-radius:6px;padding:8px;margin-bottom:4px;cursor:pointer;border-left:3px solid #6366f1;">
+          <div style="display:flex;justify-content:space-between;align-items:start;">
+            <div>
+              <div style="font-weight:600;">策略A 触发买入信号</div>
+              <div style="color:#6b7280;margin-top:2px;">10分钟前</div>
+            </div>
+            <div style="display:flex;gap:4px;align-items:center;">
+              <span style="background:#f97316;color:white;border-radius:3px;padding:1px 5px;font-size:9px;">操作建议</span>
+              <span style="color:#9ca3af;">🗑</span>
+            </div>
+          </div>
+          <div style="margin-top:6px;padding-top:6px;border-top:1px solid #e5e7eb;color:#374151;font-size:10px;line-height:1.5;">
+            建议减仓30%，当前RSI已超买...
+          </div>
+        </div>
+        <div style="background:white;border:1px solid #e5e7eb;border-radius:6px;padding:8px;cursor:pointer;">
+          <div style="display:flex;justify-content:space-between;">
+            <div style="color:#6b7280;">监控运行完成 · 点击展开</div>
+            <span style="color:#9ca3af;">🗑</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — 按策略过滤 + 点击展开内容 + 删除</h3>
+      <p>只按策略过滤（和监控中心一致），点击通知可展开查看完整内容，不跳转到监控页</p>
+    </div>
+  </div>
+
+</div>

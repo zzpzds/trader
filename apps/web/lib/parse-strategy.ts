@@ -56,18 +56,40 @@ export interface ParsedStrategy {
 }
 
 export async function parseStrategyScript(script: string): Promise<ParsedStrategy> {
-  const response = await anthropic.messages.create({
-    model: process.env.ANTHROPIC_MODEL ?? "glm-5.1",
-    max_tokens: 4096,
-    system: SYSTEM_PROMPT,
-    tools: [parseToolSchema],
-    messages: [
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error("ANTHROPIC_API_KEY 未配置，无法调用 LLM 解析");
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 60_000);
+
+  let response;
+  try {
+    response = await anthropic.messages.create(
       {
-        role: "user",
-        content: `请分析以下 Python 交易策略脚本：\n\n\`\`\`python\n${script}\n\`\`\``,
+        model: process.env.ANTHROPIC_MODEL ?? "glm-5.1",
+        max_tokens: 4096,
+        system: SYSTEM_PROMPT,
+        tools: [parseToolSchema],
+        messages: [
+          {
+            role: "user",
+            content: `请分析以下 Python 交易策略脚本：\n\n\`\`\`python\n${script}\n\`\`\``,
+          },
+        ],
       },
-    ],
-  });
+      { signal: controller.signal },
+    );
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error("LLM 解析超时（60秒），请检查网络或 API 服务状态");
+    }
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(`LLM 解析失败：${msg}`);
+  } finally {
+    clearTimeout(timeout);
+  }
 
   const toolUse = response.content.find(
     (block): block is Anthropic.ToolUseBlock => block.type === "tool_use" && block.name === PARSE_TOOL_NAME
