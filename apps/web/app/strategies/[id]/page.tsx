@@ -61,6 +61,9 @@ export default function StrategyDetailPage() {
   const [lotNotes, setLotNotes] = useState("");
   const [triggerStatus, setTriggerStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const cancelledRef = useRef(false);
 
   const fetchStrategy = useCallback(async () => {
     const res = await fetch(`/api/strategies/${id}`);
@@ -135,6 +138,43 @@ export default function StrategyDetailPage() {
     }
   }
 
+  async function handleRenameSave() {
+    if (cancelledRef.current) {
+      cancelledRef.current = false;
+      return;
+    }
+    const trimmed = nameInput.trim();
+    if (!trimmed || trimmed === strategy!.name) {
+      setEditingName(false);
+      return;
+    }
+    setEditingName(false);
+    try {
+      const res = await fetch(`/api/strategies/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setStrategy((prev) => prev ? { ...prev, name: updated.name } : prev);
+      } else {
+        alert("重命名失败，请重试");
+      }
+    } catch {
+      alert("重命名失败，请重试");
+    }
+  }
+
+  function handleRenameKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.currentTarget.blur();
+    } else if (e.key === "Escape") {
+      cancelledRef.current = true;
+      setEditingName(false);
+    }
+  }
+
   function calcAggregated(lots: Lot[]) {
     const totalShares = lots.reduce((s, l) => s + l.shares, 0);
     const totalCost = lots.reduce((s, l) => s + l.shares * parseFloat(l.costPrice), 0);
@@ -158,7 +198,29 @@ export default function StrategyDetailPage() {
           <Button variant="ghost" size="sm" onClick={() => router.push("/strategies")}>
             <ArrowLeft size={16} />
           </Button>
-          <h1 className="text-2xl font-bold">{strategy.name}</h1>
+          {editingName ? (
+            <input
+              aria-label="strategy name"
+              className="text-2xl font-bold bg-transparent border-b border-primary outline-none w-auto min-w-0"
+              value={nameInput}
+              autoFocus
+              onChange={(e) => setNameInput(e.target.value)}
+              onKeyDown={handleRenameKeyDown}
+              onBlur={handleRenameSave}
+            />
+          ) : (
+            <h1 className="text-2xl font-bold">{strategy.name}</h1>
+          )}
+          <button
+            aria-label="rename strategy"
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => {
+              setNameInput(strategy.name);
+              setEditingName(true);
+            }}
+          >
+            <Edit2 size={16} />
+          </button>
           <div className="flex gap-1">
             {strategy.symbols?.map((s) => (
               <Badge key={s} variant="outline">{s}</Badge>
