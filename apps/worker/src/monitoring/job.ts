@@ -1,6 +1,6 @@
 import { eq, and } from "drizzle-orm";
 import { strategies, positions, positionLots, monitoringRuns, notifications } from "@trader/db";
-import { fetchPrices } from "./alphavantage-fetch.js";
+import { fetchPrices, type FetchResult } from "./alphavantage-fetch.js";
 import { createAnalyzer, type PositionInfo } from "./analyze.js";
 import type { drizzle } from "drizzle-orm/postgres-js";
 import type * as schema from "@trader/db";
@@ -21,8 +21,19 @@ export async function runMonitoringJob(db: DbType, strategyId?: string) {
     return;
   }
 
+  const allSymbols = [
+    ...new Set(strategiesWithLots.flatMap((s) => s.positions.map((p) => p.symbol))),
+  ];
+
+  let allPrices: FetchResult = {};
+  try {
+    allPrices = await fetchPrices(allSymbols, "60d");
+  } catch (err) {
+    console.error("[monitoring] Failed to fetch prices:", err instanceof Error ? err.message : String(err));
+  }
+
   const tasks = strategiesWithLots.map((strategy) =>
-    limit(() => processStrategy(db, strategy, analyze))
+    limit(() => processStrategy(db, strategy, analyze, allPrices))
   );
 
   await Promise.allSettled(tasks);
@@ -85,7 +96,8 @@ async function findStrategiesWithLots(db: DbType, strategyId?: string): Promise<
 async function processStrategy(
   db: DbType,
   strategy: StrategyWithLots,
-  analyze: ReturnType<typeof createAnalyzer>
+  analyze: ReturnType<typeof createAnalyzer>,
+  prefetchedPrices: FetchResult
 ) {
   const today = new Date().toISOString().slice(0, 10);
 
@@ -100,7 +112,21 @@ async function processStrategy(
 
   try {
     const symbols = strategy.positions.map((p) => p.symbol);
-    const prices = await fetchPrices(symbols, "60d");
+    const prices: FetchResult = {};
+    const missing: string[] = [];
+    for (const symbol of symbols) {
+      if (prefetchedPrices[symbol]) {
+        prices[symbol] = prefetchedPrices[symbol];
+      } else {
+        missing.push(symbol);
+      }
+    }
+    if (Object.keys(prices).length === 0) {
+      throw new Error(`All symbols failed: ${missing.join(", ")}`);
+    }
+    if (missing.length > 0) {
+      console.warn(`[monitoring] Strategy ${strategy.name}: missing prices for ${missing.join(", ")}`);
+    }
 
     const positionInfos: PositionInfo[] = strategy.positions.map((p) => {
       const totalShares = p.positionLots.reduce((s, l) => s + l.shares, 0);

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { runMonitoringJob } from "../job.js";
 
-vi.mock("../yahoo-fetch.js", () => ({
+vi.mock("../alphavantage-fetch.js", () => ({
   fetchPrices: vi.fn().mockResolvedValue({
     QQQ: { latest: 185.0, bars: [{ date: "2025-05-01", close: 185.0, open: 183, high: 186, low: 182, volume: 50000000 }] },
   }),
@@ -23,7 +23,7 @@ vi.mock("@trader/db", () => ({
   eq: vi.fn(),
 }));
 
-import { fetchPrices } from "../yahoo-fetch.js";
+import { fetchPrices } from "../alphavantage-fetch.js";
 
 describe("runMonitoringJob", () => {
   it("skips when no strategies with lots found", async () => {

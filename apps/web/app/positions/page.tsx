@@ -91,8 +91,8 @@ export default function PositionsPage() {
                           <span
                             className={`text-sm font-medium ${
                               pnl && parseFloat(pnl) >= 0
-                                ? "text-green-600"
-                                : "text-red-600"
+                                ? "text-red-600"
+                                : "text-green-600"
                             }`}
                           >
                             {pnl}%

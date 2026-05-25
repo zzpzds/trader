@@ -343,9 +343,9 @@ export default function StrategyDetailPage() {
                     {totalShares} 股 @ ${avgCost.toFixed(2)}
                   </span>
                   {pos.latestPrice !== null ? (
-                    <span className={`text-sm font-medium ${pnlPositive ? "text-green-600" : "text-red-500"}`}>
+                    <span className={`text-sm font-medium ${pnlPositive ? "text-red-600" : "text-green-500"}`}>
                       ${pos.latestPrice} &nbsp;
-                      <span className={`text-xs px-1.5 py-0.5 rounded ${pnlPositive ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${pnlPositive ? "bg-red-50 text-red-700" : "bg-green-50 text-green-600"}`}>
                         {pnlPositive ? "+" : ""}{pnl}%
                       </span>
                     </span>
