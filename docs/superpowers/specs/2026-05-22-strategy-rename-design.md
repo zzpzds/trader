@@ -28,6 +28,8 @@ nameInput: string             // current value of the name input
 
 `nameInput` is initialized from `strategy.name` when editing starts.
 
+**Esc + blur ordering:** Pressing Esc fires `keydown` before `blur`. The `keydown` handler sets `editingName = false` and clears a `pendingSave` ref (or uses a flag) so the subsequent `blur` does not trigger a save. Implementation uses a `useRef<boolean>` (`cancelledRef`) set to `true` on Esc and checked in the blur handler.
+
 ## API
 
 Reuses existing `PUT /api/strategies/[id]` — already accepts `{ name?: string }` as a partial update.
