@@ -9,6 +9,29 @@ import pLimit from "p-limit";
 type DbType = ReturnType<typeof drizzle<typeof schema>>;
 
 const CONCURRENCY_LIMIT = 3;
+const ANALYZE_MAX_ATTEMPTS = 3;
+const ANALYZE_RETRY_BASE_MS = 10_000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function withRetry<T>(fn: () => Promise<T>, maxAttempts: number, baseDelayMs: number, label: string): Promise<T> {
+  let lastErr: Error = new Error("unknown");
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err instanceof Error ? err : new Error(String(err));
+      if (attempt < maxAttempts) {
+        const delay = baseDelayMs * attempt;
+        console.warn(`[monitoring] ${label} attempt ${attempt}/${maxAttempts} failed: ${lastErr.message}, retrying in ${delay / 1000}s`);
+        await sleep(delay);
+      }
+    }
+  }
+  throw lastErr;
+}
 
 export async function runMonitoringJob(db: DbType, strategyId?: string) {
   const limit = pLimit(CONCURRENCY_LIMIT);
@@ -154,7 +177,12 @@ async function processStrategy(
       priceSnapshots[symbol] = data.latest;
     }
 
-    const analysis = await analyze(strategy.name, strategy.content, positionInfos, prices);
+    const analysis = await withRetry(
+      () => analyze(strategy.name, strategy.content, positionInfos, prices),
+      ANALYZE_MAX_ATTEMPTS,
+      ANALYZE_RETRY_BASE_MS,
+      `analyze(${strategy.name})`
+    );
 
     await db
       .update(monitoringRuns)
