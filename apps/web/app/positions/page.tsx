@@ -39,7 +39,11 @@ export default function PositionsPage() {
       try {
         const res = await fetch("/api/positions/summary");
         if (!res.ok) throw new Error("failed");
-        setSummary(await res.json());
+        const json = await res.json();
+        if (typeof json.totalCost !== "number" || typeof json.coveredPositions !== "number") {
+          throw new Error("invalid response");
+        }
+        setSummary(json);
       } catch {
         setSummaryError(true);
       } finally {
@@ -72,6 +76,8 @@ export default function PositionsPage() {
     fetchAll();
   }, []);
 
+  const usdFormat: Intl.NumberFormatOptions = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-4">持仓管理</h1>
@@ -85,26 +91,26 @@ export default function PositionsPage() {
             <p className="text-sm text-muted-foreground">数据加载失败</p>
           ) : summary && summary.coveredPositions === 0 ? (
             <p className="text-sm text-muted-foreground">暂无价格数据</p>
-          ) : summary ? (
+          ) : summary && (
             <div className="flex items-end gap-6 flex-wrap">
               <div>
                 <p className="text-xs text-muted-foreground">总成本</p>
                 <p className="text-base font-medium">
-                  ${summary.totalCost.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ${summary.totalCost.toLocaleString("en-US", usdFormat)}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">当前市值</p>
                 <p className="text-base font-medium">
-                  ${summary.totalValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ${summary.totalValue.toLocaleString("en-US", usdFormat)}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">收益</p>
                 <p className={`text-base font-semibold ${summary.absolutePnl >= 0 ? "text-red-600" : "text-green-600"}`}>
-                  {summary.absolutePnl >= 0 ? "+" : ""}${summary.absolutePnl.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}&nbsp;
+                  {summary.absolutePnl >= 0 ? "+" : ""}${summary.absolutePnl.toLocaleString("en-US", usdFormat)}&nbsp;
                   <span className="text-sm font-medium">
-                    {summary.absolutePnl >= 0 ? "+" : ""}{summary.percentPnl.toFixed(2)}%
+                    {summary.percentPnl >= 0 ? "+" : ""}{summary.percentPnl.toFixed(2)}%
                   </span>
                 </p>
               </div>
@@ -114,7 +120,7 @@ export default function PositionsPage() {
                 </p>
               )}
             </div>
-          ) : null}
+          )}
         </CardContent>
       </Card>
 
