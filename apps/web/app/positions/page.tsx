@@ -19,10 +19,34 @@ interface StrategyPositions {
   }>;
 }
 
+interface SummaryData {
+  totalCost: number;
+  totalValue: number;
+  absolutePnl: number;
+  percentPnl: number;
+  coveredPositions: number;
+  totalPositions: number;
+}
+
 export default function PositionsPage() {
   const [data, setData] = useState<StrategyPositions[]>([]);
+  const [summary, setSummary] = useState<SummaryData | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [summaryError, setSummaryError] = useState(false);
 
   useEffect(() => {
+    async function fetchSummary() {
+      try {
+        const res = await fetch("/api/positions/summary");
+        if (!res.ok) throw new Error("failed");
+        setSummary(await res.json());
+      } catch {
+        setSummaryError(true);
+      } finally {
+        setSummaryLoading(false);
+      }
+    }
+
     async function fetchAll() {
       const res = await fetch("/api/strategies");
       const strategies = await res.json();
@@ -43,12 +67,56 @@ export default function PositionsPage() {
       }
       setData(results);
     }
+
+    fetchSummary();
     fetchAll();
   }, []);
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">持仓管理</h1>
+      <h1 className="text-2xl font-bold mb-4">持仓管理</h1>
+
+      <Card className="mb-6">
+        <CardContent className="p-4">
+          <p className="text-sm font-medium text-muted-foreground mb-3">总持仓收益</p>
+          {summaryLoading ? (
+            <div className="h-10 bg-muted animate-pulse rounded" />
+          ) : summaryError ? (
+            <p className="text-sm text-muted-foreground">数据加载失败</p>
+          ) : summary && summary.coveredPositions === 0 ? (
+            <p className="text-sm text-muted-foreground">暂无价格数据</p>
+          ) : summary ? (
+            <div className="flex items-end gap-6 flex-wrap">
+              <div>
+                <p className="text-xs text-muted-foreground">总成本</p>
+                <p className="text-base font-medium">
+                  ${summary.totalCost.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">当前市值</p>
+                <p className="text-base font-medium">
+                  ${summary.totalValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">收益</p>
+                <p className={`text-base font-semibold ${summary.absolutePnl >= 0 ? "text-red-600" : "text-green-600"}`}>
+                  {summary.absolutePnl >= 0 ? "+" : ""}${summary.absolutePnl.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}&nbsp;
+                  <span className="text-sm font-medium">
+                    {summary.absolutePnl >= 0 ? "+" : ""}{summary.percentPnl.toFixed(2)}%
+                  </span>
+                </p>
+              </div>
+              {summary.coveredPositions < summary.totalPositions && (
+                <p className="text-xs text-muted-foreground ml-auto self-end">
+                  基于 {summary.coveredPositions}/{summary.totalPositions} 个持仓的价格数据
+                </p>
+              )}
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
 
       {data.length === 0 && (
         <p className="text-muted-foreground text-center py-10">暂无持仓</p>
