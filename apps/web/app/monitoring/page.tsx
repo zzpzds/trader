@@ -72,10 +72,10 @@ function MonitoringContent() {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-4 md:p-6 max-w-none md:max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">监控中心</h1>
 
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <Card>
           <CardContent className="p-3 text-center">
             <p className="text-2xl font-bold">{stats.total}</p>
@@ -102,9 +102,9 @@ function MonitoringContent() {
         </Card>
       </div>
 
-      <div className="flex gap-3 mb-4">
+      <div className="flex gap-3 mb-4 flex-wrap">
         <Select value={strategyFilter} onValueChange={(v) => setStrategyFilter(v ?? "all")}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full md:w-48">
             <SelectValue>
               {strategyFilter === "all"
                 ? "全部策略"
@@ -133,7 +133,7 @@ function MonitoringContent() {
             onClick={() => setExpandedRun(expandedRun === run.id ? null : run.id)}
           >
             <CardContent className="p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-1">
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium">{run.runDate}</span>
                   <span className="text-sm text-muted-foreground">{run.strategyName}</span>
