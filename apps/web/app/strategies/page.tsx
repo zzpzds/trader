@@ -122,8 +122,8 @@ export default function StrategiesPage() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 md:p-6 max-w-none md:max-w-4xl mx-auto">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
         <h1 className="text-2xl font-bold">策略库</h1>
         <Button onClick={() => setShowInjection(!showInjection)}>
           <Plus size={16} className="mr-1" /> 注入策略
