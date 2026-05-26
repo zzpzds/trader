@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PnlChart } from "@/components/pnl-chart";
 
 interface StrategyPositions {
   strategyId: string;
@@ -123,6 +124,8 @@ export default function PositionsPage() {
           )}
         </CardContent>
       </Card>
+
+      <PnlChart fetchUrl="/api/positions/history" />
 
       {data.length === 0 && (
         <p className="text-muted-foreground text-center py-10">暂无持仓</p>
