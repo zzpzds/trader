@@ -187,3 +187,118 @@ describe("StrategyDetailPage description editing", () => {
     expect(putCalls).toHaveLength(0);
   });
 });
+
+describe("StrategyDetailPage script re-parse", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    global.fetch = mockFetch();
+  });
+
+  it("script tab shows a re-parse button", async () => {
+    const user = userEvent.setup();
+    render(<StrategyDetailPage />);
+    await waitFor(() => screen.getByText("QQQ动量策略"));
+    await user.click(screen.getByRole("button", { name: "原始脚本" }));
+    expect(screen.getByRole("button", { name: /re-parse script/i })).toBeInTheDocument();
+  });
+
+  it("clicking re-parse shows the input panel with paste tab", async () => {
+    const user = userEvent.setup();
+    render(<StrategyDetailPage />);
+    await waitFor(() => screen.getByText("QQQ动量策略"));
+    await user.click(screen.getByRole("button", { name: "原始脚本" }));
+    await user.click(screen.getByRole("button", { name: /re-parse script/i }));
+    expect(screen.getByText("解析脚本")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/粘贴新版/i)).toBeInTheDocument();
+  });
+
+  it("parsing calls POST /api/strategies/parse and shows preview", async () => {
+    const user = userEvent.setup();
+    const parsedResult = { name: "新策略", symbols: ["SPY"], content: "## 新策略描述" };
+    global.fetch = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+      if (url.includes("/api/strategies/parse"))
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(parsedResult) });
+      if (url.includes("/api/strategies/strat-1/positions"))
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(baseStrategy) });
+    });
+
+    render(<StrategyDetailPage />);
+    await waitFor(() => screen.getByText("QQQ动量策略"));
+    await user.click(screen.getByRole("button", { name: "原始脚本" }));
+    await user.click(screen.getByRole("button", { name: /re-parse script/i }));
+    await user.type(screen.getByPlaceholderText(/粘贴新版/i), "print('new')");
+    await user.click(screen.getByText("解析脚本"));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/strategies/parse",
+        expect.objectContaining({ method: "POST" })
+      );
+    });
+    await waitFor(() => screen.getByText("确认更新"));
+    expect(screen.getByDisplayValue("新策略")).toBeInTheDocument();
+  });
+
+  it("confirming PUT calls with all fields and switches to description tab", async () => {
+    const user = userEvent.setup();
+    const parsedResult = { name: "新策略", symbols: ["SPY"], content: "## 新策略描述" };
+    global.fetch = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+      if (url.includes("/api/strategies/parse"))
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(parsedResult) });
+      if (opts?.method === "PUT")
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ ...baseStrategy, ...parsedResult }),
+        });
+      if (url.includes("/api/strategies/strat-1/positions"))
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(baseStrategy) });
+    });
+
+    render(<StrategyDetailPage />);
+    await waitFor(() => screen.getByText("QQQ动量策略"));
+    await user.click(screen.getByRole("button", { name: "原始脚本" }));
+    await user.click(screen.getByRole("button", { name: /re-parse script/i }));
+    await user.type(screen.getByPlaceholderText(/粘贴新版/i), "print('new')");
+    await user.click(screen.getByText("解析脚本"));
+    await waitFor(() => screen.getByText("确认更新"));
+    await user.click(screen.getByText("确认更新"));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/strategies/strat-1",
+        expect.objectContaining({
+          method: "PUT",
+          body: JSON.stringify({
+            name: "新策略",
+            symbols: ["SPY"],
+            content: "## 新策略描述",
+            script: "print('new')",
+          }),
+        })
+      );
+    });
+    await waitFor(() => {
+      expect(screen.queryByText("确认更新")).not.toBeInTheDocument();
+    });
+  });
+
+  it("cancel hides the panel without PUT call", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockFetch();
+    global.fetch = fetchMock;
+
+    render(<StrategyDetailPage />);
+    await waitFor(() => screen.getByText("QQQ动量策略"));
+    await user.click(screen.getByRole("button", { name: "原始脚本" }));
+    await user.click(screen.getByRole("button", { name: /re-parse script/i }));
+    await user.click(screen.getByRole("button", { name: /取消$/ }));
+
+    expect(screen.queryByText("解析脚本")).not.toBeInTheDocument();
+    const putCalls = fetchMock.mock.calls.filter(
+      ([, opts]: [string, RequestInit?]) => opts?.method === "PUT"
+    );
+    expect(putCalls).toHaveLength(0);
+  });
+});

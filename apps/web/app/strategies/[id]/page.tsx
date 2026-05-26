@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import type { ParsedStrategy } from "@/lib/parse-strategy";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { PnlChart } from "@/components/pnl-chart";
@@ -69,6 +70,14 @@ export default function StrategyDetailPage() {
   const [editingDescription, setEditingDescription] = useState(false);
   const [descriptionInput, setDescriptionInput] = useState("");
   const [savingDescription, setSavingDescription] = useState(false);
+  const [showReparse, setShowReparse] = useState(false);
+  const [reparseTab, setReparseTab] = useState<"upload" | "paste">("paste");
+  const [reparseScript, setReparseScript] = useState("");
+  const [reparseParsed, setReparseParsed] = useState<ParsedStrategy | null>(null);
+  const [reparseEditName, setReparseEditName] = useState("");
+  const [reparseEditSymbols, setReparseEditSymbols] = useState<string[]>([]);
+  const [reparsing, setReparsing] = useState(false);
+  const [savingReparse, setSavingReparse] = useState(false);
 
   const fetchStrategy = useCallback(async () => {
     const res = await fetch(`/api/strategies/${id}`);
@@ -191,6 +200,76 @@ export default function StrategyDetailPage() {
     } finally {
       setSavingDescription(false);
     }
+  }
+
+  async function handleReparse() {
+    if (!reparseScript.trim()) return;
+    setReparsing(true);
+    setReparseParsed(null);
+    try {
+      const res = await fetch("/api/strategies/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ script: reparseScript }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
+      setReparseParsed(data);
+      setReparseEditName(data.name ?? "");
+      setReparseEditSymbols(data.symbols ?? []);
+    } catch (err) {
+      alert("解析失败: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setReparsing(false);
+    }
+  }
+
+  async function handleReparseConfirm() {
+    if (!reparseParsed) return;
+    setSavingReparse(true);
+    try {
+      const res = await fetch(`/api/strategies/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: reparseEditName,
+          symbols: reparseEditSymbols,
+          content: reparseParsed.content,
+          script: reparseScript,
+        }),
+      });
+      if (res.ok) {
+        await fetchStrategy();
+        setShowReparse(false);
+        setReparseScript("");
+        setReparseParsed(null);
+        setTab("description");
+      } else {
+        alert("更新失败，请重试");
+      }
+    } catch {
+      alert("更新失败，请重试");
+    } finally {
+      setSavingReparse(false);
+    }
+  }
+
+  function handleReparseFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.endsWith(".py")) {
+      alert("Only .py files are accepted");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setReparseScript(ev.target?.result as string);
+      setReparseTab("paste");
+    };
+    reader.readAsText(file);
   }
 
   function handleRenameKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -335,18 +414,143 @@ export default function StrategyDetailPage() {
       )}
 
       {tab === "script" && (
-        <div className="relative">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="absolute top-2 right-2"
-            onClick={() => navigator.clipboard.writeText(strategy.script)}
-          >
-            <Copy size={14} />
-          </Button>
-          <pre className="bg-muted p-4 rounded-md text-sm overflow-x-auto">
-            <code>{strategy.script}</code>
-          </pre>
+        <div>
+          <div className="relative">
+            <div className="absolute top-2 right-2 flex gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="re-parse script"
+                onClick={() => {
+                  setShowReparse(!showReparse);
+                  setReparseParsed(null);
+                  setReparseScript("");
+                }}
+              >
+                <RefreshCw size={14} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigator.clipboard.writeText(strategy.script)}
+              >
+                <Copy size={14} />
+              </Button>
+            </div>
+            <pre className="bg-muted p-4 rounded-md text-sm overflow-x-auto">
+              <code>{strategy.script}</code>
+            </pre>
+          </div>
+
+          {showReparse && (
+            <div className="mt-4 border rounded-md p-4">
+              {!reparseParsed ? (
+                <>
+                  <div className="flex gap-2 mb-4">
+                    <Button
+                      variant={reparseTab === "upload" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setReparseTab("upload")}
+                    >
+                      <Upload size={14} className="mr-1" /> 上传文件
+                    </Button>
+                    <Button
+                      variant={reparseTab === "paste" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setReparseTab("paste")}
+                    >
+                      <FileText size={14} className="mr-1" /> 粘贴代码
+                    </Button>
+                  </div>
+                  {reparseTab === "upload" ? (
+                    <Input type="file" accept=".py" onChange={handleReparseFileUpload} />
+                  ) : (
+                    <Textarea
+                      placeholder="粘贴新版 Python 策略脚本..."
+                      className="min-h-[200px] font-mono text-sm"
+                      value={reparseScript}
+                      onChange={(e) => setReparseScript(e.target.value)}
+                    />
+                  )}
+                  <div className="flex gap-2 mt-4">
+                    <Button onClick={handleReparse} disabled={reparsing || !reparseScript.trim()}>
+                      {reparsing ? "解析中..." : "解析脚本"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowReparse(false);
+                        setReparseScript("");
+                      }}
+                    >
+                      取消
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium">策略名称</label>
+                    <Input
+                      value={reparseEditName}
+                      onChange={(e) => setReparseEditName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">股票代码</label>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {reparseEditSymbols.map((s, i) => (
+                        <Badge key={i} variant="secondary">
+                          {s}
+                          <button
+                            className="ml-1 text-xs hover:text-destructive"
+                            onClick={() =>
+                              setReparseEditSymbols(reparseEditSymbols.filter((_, j) => j !== i))
+                            }
+                          >
+                            x
+                          </button>
+                        </Badge>
+                      ))}
+                      <Input
+                        className="w-24 h-7 text-xs"
+                        placeholder="+ 添加"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && e.currentTarget.value.trim()) {
+                            setReparseEditSymbols([
+                              ...reparseEditSymbols,
+                              e.currentTarget.value.trim().toUpperCase(),
+                            ]);
+                            e.currentTarget.value = "";
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">新描述预览</label>
+                    <div className="mt-1 p-3 bg-muted rounded-md text-sm max-h-[400px] overflow-y-auto prose prose-sm">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{reparseParsed.content}</ReactMarkdown>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={handleReparseConfirm} disabled={savingReparse}>
+                      {savingReparse ? "更新中..." : "确认更新"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setReparseParsed(null);
+                        setReparseScript("");
+                      }}
+                    >
+                      取消
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
