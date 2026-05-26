@@ -80,7 +80,7 @@ export default function PositionsPage() {
   const usdFormat: Intl.NumberFormatOptions = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-4 md:p-6 max-w-none md:max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-4">持仓管理</h1>
 
       <Card className="mb-6">
@@ -153,7 +153,7 @@ export default function PositionsPage() {
 
               return (
                 <Card key={pos.id}>
-                  <CardContent className="p-3 flex items-center justify-between">
+                  <CardContent className="p-3 flex items-center justify-between flex-wrap gap-1">
                     <div className="flex items-center gap-3">
                       <Badge variant="outline">{pos.symbol}</Badge>
                       <span className="text-sm">{totalShares} 股</span>
