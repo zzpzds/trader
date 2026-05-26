@@ -298,9 +298,9 @@ export default function StrategyDetailPage() {
   ];
 
   return (
-    <div className="h-screen flex flex-col p-6 max-w-4xl mx-auto">
+    <div className="h-screen flex flex-col p-4 md:p-6 max-w-none md:max-w-4xl mx-auto">
       <div className="shrink-0 mb-4">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <Button variant="ghost" size="sm" onClick={() => router.push("/strategies")}>
             <ArrowLeft size={16} />
           </Button>
@@ -355,7 +355,7 @@ export default function StrategyDetailPage() {
         )}
       </div>
 
-      <div className="flex gap-1 mb-4 border-b shrink-0">
+      <div className="flex gap-1 mb-4 border-b shrink-0 overflow-x-auto">
         {tabs.map(({ key, label }) => (
           <button
             key={key}
@@ -555,110 +555,103 @@ export default function StrategyDetailPage() {
       )}
 
       {tab === "positions" && (
-        <div className="space-y-4">
-          <PnlChart fetchUrl={`/api/strategies/${id}/history`} />
+  <div className="space-y-4">
+    <PnlChart fetchUrl={`/api/strategies/${id}/history`} />
 
-          <div className="flex justify-end">
-            <Button size="sm" onClick={() => setShowAddLot(!showAddLot)}>
-              <Plus size={14} className="mr-1" /> 新增批次
-            </Button>
+    <div className="flex justify-end">
+      <Button size="sm" onClick={() => setShowAddLot(!showAddLot)}>
+        <Plus size={14} className="mr-1" /> 新增批次
+      </Button>
+    </div>
+
+    {showAddLot && (
+      <Card>
+        <CardContent className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground">股票代码</label>
+              <Input value={lotSymbol} onChange={(e) => setLotSymbol(e.target.value)} placeholder="QQQ" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">股数</label>
+              <Input type="number" value={lotShares} onChange={(e) => setLotShares(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">成本价</label>
+              <Input type="number" step="0.01" value={lotPrice} onChange={(e) => setLotPrice(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">建仓日期</label>
+              <Input type="date" value={lotDate} onChange={(e) => setLotDate(e.target.value)} />
+            </div>
+            <div className="col-span-1 md:col-span-2">
+              <label className="text-xs text-muted-foreground">备注</label>
+              <Input value={lotNotes} onChange={(e) => setLotNotes(e.target.value)} />
+            </div>
           </div>
+          <div className="flex gap-2 mt-3">
+            <Button size="sm" onClick={handleAddLot}>保存</Button>
+            <Button size="sm" variant="outline" onClick={() => setShowAddLot(false)}>取消</Button>
+          </div>
+        </CardContent>
+      </Card>
+    )}
 
-          {showAddLot && (
-            <Card>
-              <CardContent className="p-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs text-muted-foreground">股票代码</label>
-                    <Input value={lotSymbol} onChange={(e) => setLotSymbol(e.target.value)} placeholder="QQQ" />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">股数</label>
-                    <Input type="number" value={lotShares} onChange={(e) => setLotShares(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">成本价</label>
-                    <Input type="number" step="0.01" value={lotPrice} onChange={(e) => setLotPrice(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">建仓日期</label>
-                    <Input type="date" value={lotDate} onChange={(e) => setLotDate(e.target.value)} />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="text-xs text-muted-foreground">备注</label>
-                    <Input value={lotNotes} onChange={(e) => setLotNotes(e.target.value)} />
-                  </div>
-                </div>
-                <div className="flex gap-2 mt-3">
-                  <Button size="sm" onClick={handleAddLot}>保存</Button>
-                  <Button size="sm" variant="outline" onClick={() => setShowAddLot(false)}>取消</Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {positions.map((pos) => {
-            const { totalShares, avgCost } = calcAggregated(pos.positionLots);
-            const pnl = pos.latestPrice
-              ? ((pos.latestPrice - avgCost) / avgCost * 100).toFixed(2)
-              : null;
-            const pnlPositive = pnl !== null && parseFloat(pnl) >= 0;
-            return (
-              <div key={pos.id} className="rounded-lg border bg-card">
-                <div className="flex items-center gap-3 px-4 py-3 border-b">
-                  <span className="font-semibold">{pos.symbol}</span>
-                  <span className="text-sm text-muted-foreground">
-                    {totalShares} 股 @ ${avgCost.toFixed(2)}
-                  </span>
-                  {pos.latestPrice !== null ? (
-                    <span className={`text-sm font-medium ${pnlPositive ? "text-red-600" : "text-green-500"}`}>
-                      ${pos.latestPrice} &nbsp;
-                      <span className={`text-xs px-1.5 py-0.5 rounded ${pnlPositive ? "bg-red-50 text-red-700" : "bg-green-50 text-green-600"}`}>
-                        {pnlPositive ? "+" : ""}{pnl}%
-                      </span>
-                    </span>
-                  ) : (
-                    <span className="text-sm text-muted-foreground">--</span>
+    {positions.map((pos) => {
+      const { totalShares, avgCost } = calcAggregated(pos.positionLots);
+      const pnl = pos.latestPrice
+        ? ((pos.latestPrice - avgCost) / avgCost * 100).toFixed(2)
+        : null;
+      const pnlPositive = pnl !== null && parseFloat(pnl) >= 0;
+      return (
+        <div key={pos.id} className="rounded-lg border bg-card p-4">
+          <div className="flex items-center justify-between flex-wrap gap-1 mb-3">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold">{pos.symbol}</span>
+              <span className="text-sm text-muted-foreground">
+                {totalShares} 股 @ ${avgCost.toFixed(2)}
+              </span>
+            </div>
+            {pos.latestPrice !== null ? (
+              <span className={`text-sm font-medium ${pnlPositive ? "text-red-600" : "text-green-500"}`}>
+                ${pos.latestPrice} &nbsp;
+                <span className={`text-xs px-1.5 py-0.5 rounded ${pnlPositive ? "bg-red-50 text-red-700" : "bg-green-50 text-green-600"}`}>
+                  {pnlPositive ? "+" : ""}{pnl}%
+                </span>
+              </span>
+            ) : (
+              <span className="text-sm text-muted-foreground">--</span>
+            )}
+          </div>
+          <div className="divide-y">
+            {pos.positionLots.map((lot) => (
+              <div key={lot.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0 hover:bg-muted/40 transition-colors">
+                <div className="flex items-center gap-3 text-sm">
+                  <span className="tabular-nums">{lot.lotDate}</span>
+                  <span className="tabular-nums">{lot.shares}股</span>
+                  <span className="tabular-nums">${parseFloat(lot.costPrice).toFixed(2)}</span>
+                  {lot.notes && (
+                    <span className="text-muted-foreground text-xs">{lot.notes}</span>
                   )}
                 </div>
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-xs text-muted-foreground">
-                      <th className="text-left font-normal px-4 py-2">日期</th>
-                      <th className="text-right font-normal px-4 py-2">股数</th>
-                      <th className="text-right font-normal px-4 py-2">成本价</th>
-                      <th className="text-left font-normal px-4 py-2">备注</th>
-                      <th className="w-10"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {pos.positionLots.map((lot) => (
-                      <tr key={lot.id} className="hover:bg-muted/40 transition-colors">
-                        <td className="px-4 py-2.5 tabular-nums">{lot.lotDate}</td>
-                        <td className="px-4 py-2.5 text-right tabular-nums">{lot.shares}</td>
-                        <td className="px-4 py-2.5 text-right tabular-nums">${parseFloat(lot.costPrice).toFixed(2)}</td>
-                        <td className="px-4 py-2.5 text-muted-foreground text-xs">{lot.notes ?? ""}</td>
-                        <td className="pr-2 py-2.5 text-center">
-                          <button
-                            className="text-muted-foreground hover:text-destructive transition-colors p-1 rounded"
-                            onClick={() => handleDeleteLot(lot.id)}
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <button
+                  className="text-muted-foreground hover:text-destructive transition-colors p-1 rounded"
+                  onClick={() => handleDeleteLot(lot.id)}
+                >
+                  <Trash2 size={13} />
+                </button>
               </div>
-            );
-          })}
-
-          {positions.length === 0 && (
-            <p className="text-muted-foreground text-center py-6">暂无持仓记录</p>
-          )}
+            ))}
+          </div>
         </div>
-      )}
+      );
+    })}
+
+    {positions.length === 0 && (
+      <p className="text-muted-foreground text-center py-6">暂无持仓记录</p>
+    )}
+  </div>
+)}
 
       {tab === "analysis" && (
         <div className="space-y-3">
