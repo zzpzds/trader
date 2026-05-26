@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Copy, Plus, Trash2, Edit2, PlayCircle } from "lucide-react";
+import { ArrowLeft, Copy, Plus, Trash2, Edit2, PlayCircle, RefreshCw, Upload, FileText } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { PnlChart } from "@/components/pnl-chart";
@@ -65,6 +66,9 @@ export default function StrategyDetailPage() {
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const cancelledRef = useRef(false);
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [descriptionInput, setDescriptionInput] = useState("");
+  const [savingDescription, setSavingDescription] = useState(false);
 
   const fetchStrategy = useCallback(async () => {
     const res = await fetch(`/api/strategies/${id}`);
@@ -164,6 +168,28 @@ export default function StrategyDetailPage() {
       }
     } catch {
       alert("重命名失败，请重试");
+    }
+  }
+
+  async function handleSaveDescription() {
+    setSavingDescription(true);
+    try {
+      const res = await fetch(`/api/strategies/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: descriptionInput }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setStrategy((prev) => prev ? { ...prev, content: updated.content } : prev);
+        setEditingDescription(false);
+      } else {
+        alert("保存失败，请重试");
+      }
+    } catch {
+      alert("保存失败，请重试");
+    } finally {
+      setSavingDescription(false);
     }
   }
 
@@ -268,8 +294,43 @@ export default function StrategyDetailPage() {
 
       <div className="flex-1 overflow-y-auto min-h-0">
       {tab === "description" && (
-        <div className="prose prose-sm max-w-none">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{strategy.content}</ReactMarkdown>
+        <div>
+          <div className="flex justify-end mb-2">
+            {editingDescription ? (
+              <div className="flex gap-2">
+                <Button size="sm" onClick={handleSaveDescription} disabled={savingDescription}>
+                  {savingDescription ? "保存中..." : "保存"}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setEditingDescription(false)}>
+                  取消
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="edit description"
+                onClick={() => {
+                  setDescriptionInput(strategy.content);
+                  setEditingDescription(true);
+                }}
+              >
+                <Edit2 size={14} />
+              </Button>
+            )}
+          </div>
+          {editingDescription ? (
+            <Textarea
+              aria-label="description input"
+              value={descriptionInput}
+              onChange={(e) => setDescriptionInput(e.target.value)}
+              className="min-h-[300px] font-mono text-sm"
+            />
+          ) : (
+            <div className="prose prose-sm max-w-none">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{strategy.content}</ReactMarkdown>
+            </div>
+          )}
         </div>
       )}
 

@@ -109,3 +109,81 @@ describe("StrategyDetailPage rename", () => {
     expect(putCalls).toHaveLength(0);
   });
 });
+
+describe("StrategyDetailPage description editing", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    global.fetch = mockFetch();
+  });
+
+  it("description tab shows an edit button", async () => {
+    const user = userEvent.setup();
+    render(<StrategyDetailPage />);
+    await waitFor(() => screen.getByText("QQQ动量策略"));
+    await user.click(screen.getByRole("button", { name: "策略描述" }));
+    expect(screen.getByRole("button", { name: /edit description/i })).toBeInTheDocument();
+  });
+
+  it("clicking edit shows a textarea prefilled with current content", async () => {
+    const user = userEvent.setup();
+    render(<StrategyDetailPage />);
+    await waitFor(() => screen.getByText("QQQ动量策略"));
+    await user.click(screen.getByRole("button", { name: "策略描述" }));
+    await user.click(screen.getByRole("button", { name: /edit description/i }));
+    const textarea = screen.getByRole("textbox", { name: /description input/i });
+    expect(textarea).toBeInTheDocument();
+    expect(textarea).toHaveValue("## 策略描述");
+  });
+
+  it("saving calls PUT with updated content and switches back to preview", async () => {
+    const user = userEvent.setup();
+    global.fetch = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+      if (opts?.method === "PUT")
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ ...baseStrategy, content: "## 新描述" }),
+        });
+      if (url.includes("/api/strategies/strat-1/positions"))
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(baseStrategy) });
+    });
+
+    render(<StrategyDetailPage />);
+    await waitFor(() => screen.getByText("QQQ动量策略"));
+    await user.click(screen.getByRole("button", { name: "策略描述" }));
+    await user.click(screen.getByRole("button", { name: /edit description/i }));
+    const textarea = screen.getByRole("textbox", { name: /description input/i });
+    await user.clear(textarea);
+    await user.type(textarea, "## 新描述");
+    await user.click(screen.getByRole("button", { name: /^保存$/ }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/strategies/strat-1",
+        expect.objectContaining({
+          method: "PUT",
+          body: JSON.stringify({ content: "## 新描述" }),
+        })
+      );
+    });
+    expect(screen.queryByRole("textbox", { name: /description input/i })).not.toBeInTheDocument();
+  });
+
+  it("cancel restores preview without PUT call", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockFetch();
+    global.fetch = fetchMock;
+
+    render(<StrategyDetailPage />);
+    await waitFor(() => screen.getByText("QQQ动量策略"));
+    await user.click(screen.getByRole("button", { name: "策略描述" }));
+    await user.click(screen.getByRole("button", { name: /edit description/i }));
+    await user.click(screen.getByRole("button", { name: /取消/ }));
+
+    expect(screen.queryByRole("textbox", { name: /description input/i })).not.toBeInTheDocument();
+    const putCalls = fetchMock.mock.calls.filter(
+      ([, opts]: [string, RequestInit?]) => opts?.method === "PUT"
+    );
+    expect(putCalls).toHaveLength(0);
+  });
+});
