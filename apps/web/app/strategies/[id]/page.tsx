@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { PnlChart } from "@/components/pnl-chart";
 
 interface Strategy {
   id: string;
@@ -290,6 +291,8 @@ export default function StrategyDetailPage() {
 
       {tab === "positions" && (
         <div className="space-y-4">
+          <PnlChart fetchUrl={`/api/strategies/${id}/history`} />
+
           <div className="flex justify-end">
             <Button size="sm" onClick={() => setShowAddLot(!showAddLot)}>
               <Plus size={14} className="mr-1" /> 新增批次
