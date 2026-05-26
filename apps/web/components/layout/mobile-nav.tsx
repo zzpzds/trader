@@ -64,8 +64,8 @@ export function MobileNav() {
             <Icon size={18} />
             {label}
             {href === "/notifications" && unreadCount > 0 && (
-              <span className="absolute top-1 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                {unreadCount}
+              <span className="absolute top-1 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full min-w-4 h-4 px-1 flex items-center justify-center">
+                {unreadCount > 99 ? "99+" : unreadCount}
               </span>
             )}
           </Link>
