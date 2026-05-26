@@ -29,7 +29,7 @@ const navItems = [
   },
 ];
 
-export function Sidebar() {
+export function Sidebar({ className }: { className?: string }) {
   const pathname = usePathname();
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -47,7 +47,7 @@ export function Sidebar() {
   }, [pathname]);
 
   return (
-    <aside className="w-56 shrink-0 border-r bg-muted/20 flex flex-col h-full">
+    <aside className={cn("w-56 shrink-0 border-r bg-muted/20 flex flex-col h-full", className)}>
       <div className="px-4 py-5 border-b">
         <span className="font-bold text-lg tracking-tight">Trader</span>
       </div>
