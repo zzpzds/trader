@@ -88,10 +88,10 @@ export default function NotificationsPage() {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-4 md:p-6 max-w-none md:max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">通知</h1>
 
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
         <Card>
           <CardContent className="p-3 text-center">
             <p className="text-2xl font-bold">{stats.unread}</p>
@@ -112,8 +112,8 @@ export default function NotificationsPage() {
         </Card>
       </div>
 
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {(["all", "unread", "read"] as StatusFilter[]).map((s) => (
             <Button
               key={s}
@@ -157,7 +157,7 @@ export default function NotificationsPage() {
             onClick={() => handleClickNotification(n)}
           >
             <CardContent className="p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-1">
                 <div className="flex items-center gap-3 min-w-0">
                   {!n.isRead && (
                     <span className="shrink-0 w-2 h-2 rounded-full bg-primary" />
