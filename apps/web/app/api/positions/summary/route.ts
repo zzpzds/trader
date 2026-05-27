@@ -28,8 +28,8 @@ export async function GET() {
     const { positionLots, strategyId, symbol } = pos;
     if (positionLots.length === 0) continue;
 
-    const shares = positionLots.reduce((s, l) => s + l.shares, 0);
-    const cost = positionLots.reduce((s, l) => s + l.shares * parseFloat(l.costPrice), 0);
+    const shares = positionLots.reduce((s, l) => s + parseFloat(l.shares), 0);
+    const cost = positionLots.reduce((s, l) => s + parseFloat(l.shares) * parseFloat(l.costPrice), 0);
     totalCost += cost;
 
     const latestPrice = latestPrices.get(strategyId)?.[symbol];
