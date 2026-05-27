@@ -68,4 +68,10 @@ describe("schema exports", () => {
     expect(mod).not.toHaveProperty("backtests");
     expect(mod).not.toHaveProperty("priceCache");
   });
+
+  it("positionLots.shares is numeric (supports decimals)", () => {
+    // drizzle numeric columns have dataType "custom" and columnType "PgNumeric"
+    const col = (positionLots.shares as unknown as { columnType: string });
+    expect(col.columnType).toBe("PgNumeric");
+  });
 });

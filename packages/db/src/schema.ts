@@ -46,7 +46,7 @@ export const positionLots = pgTable("position_lots", {
   positionId: text("position_id")
     .notNull()
     .references(() => positions.id, { onDelete: "cascade" }),
-  shares: integer("shares").notNull(),
+  shares: numeric("shares", { precision: 15, scale: 4 }).notNull(),
   costPrice: numeric("cost_price", { precision: 15, scale: 4 }).notNull(),
   lotDate: text("lot_date").notNull(),
   notes: text("notes"),
