@@ -91,4 +91,9 @@ const schema_1 = require("./schema");
         (0, vitest_1.expect)(mod).not.toHaveProperty("backtests");
         (0, vitest_1.expect)(mod).not.toHaveProperty("priceCache");
     });
+    (0, vitest_1.it)("positionLots.shares is numeric (supports decimals)", () => {
+        // drizzle numeric columns have dataType "custom" and columnType "PgNumeric"
+        const col = schema_1.positionLots.shares;
+        (0, vitest_1.expect)(col.columnType).toBe("PgNumeric");
+    });
 });

@@ -32,7 +32,7 @@ exports.positionLots = (0, pg_core_1.pgTable)("position_lots", {
     positionId: (0, pg_core_1.text)("position_id")
         .notNull()
         .references(() => exports.positions.id, { onDelete: "cascade" }),
-    shares: (0, pg_core_1.integer)("shares").notNull(),
+    shares: (0, pg_core_1.numeric)("shares", { precision: 15, scale: 4 }).notNull(),
     costPrice: (0, pg_core_1.numeric)("cost_price", { precision: 15, scale: 4 }).notNull(),
     lotDate: (0, pg_core_1.text)("lot_date").notNull(),
     notes: (0, pg_core_1.text)("notes"),

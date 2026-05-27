@@ -259,10 +259,10 @@ export declare const positionLots: import("drizzle-orm/pg-core").PgTableWithColu
         shares: import("drizzle-orm/pg-core").PgColumn<{
             name: "shares";
             tableName: "position_lots";
-            dataType: "number";
-            columnType: "PgInteger";
-            data: number;
-            driverParam: string | number;
+            dataType: "string";
+            columnType: "PgNumeric";
+            data: string;
+            driverParam: string;
             notNull: true;
             hasDefault: false;
             isPrimaryKey: false;
