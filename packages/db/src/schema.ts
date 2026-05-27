@@ -4,7 +4,6 @@ import {
   timestamp,
   jsonb,
   numeric,
-  integer,
   boolean,
   uniqueIndex,
   index,
