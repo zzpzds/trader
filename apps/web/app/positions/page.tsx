@@ -14,7 +14,7 @@ interface StrategyPositions {
     symbol: string;
     latestPrice: number | null;
     positionLots: Array<{
-      shares: number;
+      shares: string;
       costPrice: string;
     }>;
   }>;
@@ -140,9 +140,9 @@ export default function PositionsPage() {
           </h2>
           <div className="space-y-2">
             {positions.map((pos) => {
-              const totalShares = pos.positionLots.reduce((s, l) => s + l.shares, 0);
+              const totalShares = pos.positionLots.reduce((s, l) => s + parseFloat(l.shares), 0);
               const totalCost = pos.positionLots.reduce(
-                (s, l) => s + l.shares * parseFloat(l.costPrice),
+                (s, l) => s + parseFloat(l.shares) * parseFloat(l.costPrice),
                 0
               );
               const avgCost = totalShares > 0 ? totalCost / totalShares : 0;
