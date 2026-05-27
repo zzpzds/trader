@@ -30,7 +30,7 @@ interface Position {
 
 interface Lot {
   id: string;
-  shares: number;
+  shares: string;
   costPrice: string;
   lotDate: string;
   notes: string | null;
@@ -46,6 +46,11 @@ interface MonitoringRun {
 }
 
 type Tab = "description" | "script" | "positions" | "analysis";
+
+function formatShares(shares: string | number): string {
+  const n = typeof shares === "string" ? parseFloat(shares) : shares;
+  return String(n);
+}
 
 export default function StrategyDetailPage() {
   const params = useParams();
@@ -119,7 +124,7 @@ export default function StrategyDetailPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         symbol: lotSymbol.toUpperCase(),
-        shares: parseInt(lotShares),
+        shares: parseFloat(lotShares),
         costPrice: lotPrice,
         lotDate,
         notes: lotNotes || undefined,
@@ -282,8 +287,8 @@ export default function StrategyDetailPage() {
   }
 
   function calcAggregated(lots: Lot[]) {
-    const totalShares = lots.reduce((s, l) => s + l.shares, 0);
-    const totalCost = lots.reduce((s, l) => s + l.shares * parseFloat(l.costPrice), 0);
+    const totalShares = lots.reduce((s, l) => s + parseFloat(l.shares), 0);
+    const totalCost = lots.reduce((s, l) => s + parseFloat(l.shares) * parseFloat(l.costPrice), 0);
     const avgCost = totalShares > 0 ? totalCost / totalShares : 0;
     return { totalShares, avgCost };
   }
@@ -574,7 +579,7 @@ export default function StrategyDetailPage() {
             </div>
             <div>
               <label className="text-xs text-muted-foreground">股数</label>
-              <Input type="number" value={lotShares} onChange={(e) => setLotShares(e.target.value)} />
+              <Input type="number" step="0.0001" value={lotShares} onChange={(e) => setLotShares(e.target.value)} />
             </div>
             <div>
               <label className="text-xs text-muted-foreground">成本价</label>
@@ -609,7 +614,7 @@ export default function StrategyDetailPage() {
             <div className="flex items-center gap-2">
               <span className="font-semibold">{pos.symbol}</span>
               <span className="text-sm text-muted-foreground">
-                {totalShares} 股 @ ${avgCost.toFixed(2)}
+                {formatShares(totalShares)} 股 @ ${avgCost.toFixed(2)}
               </span>
             </div>
             {pos.latestPrice !== null ? (
@@ -628,7 +633,7 @@ export default function StrategyDetailPage() {
               <div key={lot.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0 hover:bg-muted/40 transition-colors">
                 <div className="flex items-center gap-3 text-sm">
                   <span className="tabular-nums">{lot.lotDate}</span>
-                  <span className="tabular-nums">{lot.shares}股</span>
+                  <span className="tabular-nums">{formatShares(lot.shares)}股</span>
                   <span className="tabular-nums">${parseFloat(lot.costPrice).toFixed(2)}</span>
                   {lot.notes && (
                     <span className="text-muted-foreground text-xs">{lot.notes}</span>
