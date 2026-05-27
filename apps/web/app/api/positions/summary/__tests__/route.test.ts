@@ -21,7 +21,7 @@ const posQQQ = {
   id: "pos-1",
   strategyId: "strat-1",
   symbol: "QQQ",
-  positionLots: [{ shares: 10, costPrice: "100.0000" }],
+  positionLots: [{ shares: "10", costPrice: "100.0000" }],
 };
 
 const runWithPrices = {
@@ -71,7 +71,7 @@ describe("GET /api/positions/summary", () => {
       id: "pos-2",
       strategyId: "strat-2",
       symbol: "SPY",
-      positionLots: [{ shares: 5, costPrice: "200.0000" }],
+      positionLots: [{ shares: "5", costPrice: "200.0000" }],
     };
 
     mockPositionsFindMany.mockResolvedValueOnce([posQQQ, posSPY]);

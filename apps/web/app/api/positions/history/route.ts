@@ -23,8 +23,8 @@ export async function GET(request: Request) {
   const costBasis = new Map<string, Map<string, { shares: number; cost: number }>>();
   for (const pos of allPositions) {
     if (pos.positionLots.length === 0) continue;
-    const shares = pos.positionLots.reduce((s, l) => s + l.shares, 0);
-    const cost = pos.positionLots.reduce((s, l) => s + l.shares * parseFloat(l.costPrice), 0);
+    const shares = pos.positionLots.reduce((s, l) => s + parseFloat(l.shares), 0);
+    const cost = pos.positionLots.reduce((s, l) => s + parseFloat(l.shares) * parseFloat(l.costPrice), 0);
     if (!costBasis.has(pos.strategyId)) costBasis.set(pos.strategyId, new Map());
     costBasis.get(pos.strategyId)!.set(pos.symbol, { shares, cost });
   }

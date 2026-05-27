@@ -28,8 +28,8 @@ export async function GET(
   const costBasis = new Map<string, { shares: number; cost: number }>();
   for (const pos of strategyPositions) {
     if (pos.positionLots.length === 0) continue;
-    const shares = pos.positionLots.reduce((s, l) => s + l.shares, 0);
-    const cost = pos.positionLots.reduce((s, l) => s + l.shares * parseFloat(l.costPrice), 0);
+    const shares = pos.positionLots.reduce((s, l) => s + parseFloat(l.shares), 0);
+    const cost = pos.positionLots.reduce((s, l) => s + parseFloat(l.shares) * parseFloat(l.costPrice), 0);
     costBasis.set(pos.symbol, { shares, cost });
   }
 
