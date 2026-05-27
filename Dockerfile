@@ -12,6 +12,7 @@ FROM base AS build
 COPY . .
 RUN npm run build -w packages/db
 ENV NEXT_SKIP_TYPE_CHECK=true
+ENV NODE_OPTIONS="--max-old-space-size=1024"
 RUN npm run build -w apps/web
 RUN cd apps/worker && npx tsc --noCheck
 

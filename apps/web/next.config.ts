@@ -5,6 +5,9 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: process.env.NEXT_SKIP_TYPE_CHECK === "true",
   },
+  experimental: {
+    cpus: 1,
+  },
 };
 
 export default nextConfig;
