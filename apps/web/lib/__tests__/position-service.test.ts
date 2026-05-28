@@ -28,6 +28,56 @@ describe("upsertPositionAndCreateLot", () => {
     vi.clearAllMocks();
   });
 
+  it("sets referencePrice from costPrice when creating new position", async () => {
+    (db.query.positions.findFirst as any).mockResolvedValueOnce(undefined);
+
+    const posInsertReturning = mockReturning([{ id: "pos-ref" }]);
+    const posInsertValues = mockValues(posInsertReturning);
+    const lotInsertValues = mockValues(mockReturning([
+      { id: "lot-ref", positionId: "pos-ref", shares: 10, costPrice: "250.00", lotDate: "2025-03-01" },
+    ]));
+
+    let insertCallCount = 0;
+    (db.insert as any).mockImplementation(() => {
+      insertCallCount++;
+      if (insertCallCount === 1) return posInsertValues;
+      return lotInsertValues;
+    });
+
+    await upsertPositionAndCreateLot("strat-1", "ISRG", 10, "250.00", "2025-03-01");
+
+    expect(posInsertValues.values).toHaveBeenCalledWith(
+      expect.objectContaining({ referencePrice: "250.00" })
+    );
+  });
+
+  it("does not overwrite referencePrice when position already exists", async () => {
+    (db.query.positions.findFirst as any).mockResolvedValueOnce({
+      id: "pos-existing",
+      strategyId: "strat-1",
+      symbol: "ISRG",
+      referencePrice: "200.00",
+    });
+
+    const updateSetMock = vi.fn().mockReturnValue({
+      where: vi.fn().mockReturnValue({
+        returning: vi.fn().mockResolvedValueOnce([{ id: "pos-existing" }]),
+      }),
+    });
+    (db.update as any).mockReturnValue({ set: updateSetMock });
+
+    const lotInsertValues = mockValues(mockReturning([
+      { id: "lot-3", positionId: "pos-existing", shares: 5, costPrice: "260.00", lotDate: "2025-04-01" },
+    ]));
+    (db.insert as any).mockReturnValue(lotInsertValues);
+
+    await upsertPositionAndCreateLot("strat-1", "ISRG", 5, "260.00", "2025-04-01");
+
+    expect(updateSetMock).toHaveBeenCalledWith(
+      expect.not.objectContaining({ referencePrice: expect.anything() })
+    );
+  });
+
   it("creates new position when none exists, then creates lot", async () => {
     (db.query.positions.findFirst as any).mockResolvedValueOnce(undefined);
 

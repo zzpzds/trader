@@ -25,7 +25,7 @@ export async function upsertPositionAndCreateLot(
   } else {
     const [pos] = await db
       .insert(positions)
-      .values({ strategyId, symbol })
+      .values({ strategyId, symbol, referencePrice: costPrice })
       .returning();
     positionId = pos.id;
   }
