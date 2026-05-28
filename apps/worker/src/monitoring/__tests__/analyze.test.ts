@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { createAnalyzer } from "../analyze.js";
 
-function makeToolUseResponse(input: { analysis: string; has_action_items: boolean; action_summary?: string }) {
+function makeToolUseResponse(input: { analysis: string; has_action_items: boolean; action_summary?: string; reference_price_updates?: Array<{ symbol: string; new_reference_price: number }> }) {
   return {
     content: [
       {
@@ -74,6 +74,47 @@ describe("analyzeStrategy", () => {
     await expect(
       analyze("Test", "desc", [], {})
     ).rejects.toThrow("LLM did not return structured analysis result");
+  });
+
+  it("returns referencePriceUpdates when LLM outputs them", async () => {
+    const client = mockClient(
+      makeToolUseResponse({
+        analysis: "## Analysis\nISRG hit reset threshold.",
+        has_action_items: false,
+        reference_price_updates: [{ symbol: "ISRG", new_reference_price: 348.5 }],
+      })
+    );
+    const analyze = createAnalyzer(client);
+
+    const result = await analyze(
+      "T1 Strategy",
+      "Reset ref price when price >= ref * 1.15",
+      [{ symbol: "ISRG", totalShares: 10, avgCost: 300, referencePrice: 300, lots: [] }],
+      { ISRG: { latest: 348.5, bars: [] } }
+    );
+
+    expect(result.referencePriceUpdates).toEqual([
+      { symbol: "ISRG", newReferencePrice: 348.5 },
+    ]);
+  });
+
+  it("returns empty referencePriceUpdates when LLM omits the field", async () => {
+    const client = mockClient(
+      makeToolUseResponse({
+        analysis: "## Analysis\nAll within range.",
+        has_action_items: false,
+      })
+    );
+    const analyze = createAnalyzer(client);
+
+    const result = await analyze(
+      "T1 Strategy",
+      "Reset ref price when price >= ref * 1.15",
+      [{ symbol: "ISRG", totalShares: 10, avgCost: 300, referencePrice: 300, lots: [] }],
+      { ISRG: { latest: 310, bars: [] } }
+    );
+
+    expect(result.referencePriceUpdates).toEqual([]);
   });
 
   it("defaults analysis to empty string if missing", async () => {

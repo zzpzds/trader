@@ -20,6 +20,18 @@ const reportToolSchema = {
         type: "string" as const,
         description: "Brief summary of recommended actions, if any",
       },
+      reference_price_updates: {
+        type: "array" as const,
+        description: "List of reference price resets triggered by strategy rules",
+        items: {
+          type: "object" as const,
+          properties: {
+            symbol: { type: "string" as const, description: "Stock symbol" },
+            new_reference_price: { type: "number" as const, description: "New reference price value" },
+          },
+          required: ["symbol", "new_reference_price"],
+        },
+      },
     },
     required: ["analysis", "has_action_items"],
   },
@@ -29,12 +41,14 @@ export interface AnalysisResult {
   analysis: string;
   hasActionItems: boolean;
   actionSummary?: string;
+  referencePriceUpdates: Array<{ symbol: string; newReferencePrice: number }>;
 }
 
 export interface PositionInfo {
   symbol: string;
   totalShares: number;
   avgCost: number;
+  referencePrice?: number | null;
   lots: Array<{ shares: number; costPrice: number; lotDate: string; notes?: string }>;
 }
 
@@ -55,7 +69,8 @@ export function createAnalyzer(client?: Anthropic) {
         const priceData = prices[p.symbol];
         const latestPrice = priceData?.latest;
         const pnl = latestPrice ? ((latestPrice - p.avgCost) / p.avgCost * 100).toFixed(2) : null;
-        return `- ${p.symbol}: ${p.totalShares} shares @ avg $${p.avgCost.toFixed(2)}, latest $${latestPrice ?? "N/A"}, P&L ${pnl ?? "N/A"}%`;
+        const refLabel = p.referencePrice != null ? `$${p.referencePrice.toFixed(2)}` : "无参考价";
+        return `- ${p.symbol}: ${p.totalShares} shares @ avg $${p.avgCost.toFixed(2)}, ref ${refLabel}, latest $${latestPrice ?? "N/A"}, P&L ${pnl ?? "N/A"}%`;
       })
       .join("\n");
 
@@ -85,7 +100,7 @@ ${positionSummary}
 ## 近期价格数据
 ${recentBars}
 
-请分析当前市场状况是否触发了策略规则（入场、出场、仓位调整），并给出你的判断。`,
+请分析当前市场状况是否触发了策略规则（入场、出场、仓位调整、参考价重置），并给出你的判断。若参考价需要更新，请在 reference_price_updates 中输出新值。`,
         },
       ],
     });
@@ -102,12 +117,17 @@ ${recentBars}
       analysis: string;
       has_action_items: boolean;
       action_summary?: string;
+      reference_price_updates?: Array<{ symbol: string; new_reference_price: number }>;
     };
 
     return {
       analysis: input.analysis ?? "",
       hasActionItems: input.has_action_items ?? false,
       actionSummary: input.action_summary,
+      referencePriceUpdates: (input.reference_price_updates ?? []).map((u) => ({
+        symbol: u.symbol,
+        newReferencePrice: u.new_reference_price,
+      })),
     };
   };
 }
