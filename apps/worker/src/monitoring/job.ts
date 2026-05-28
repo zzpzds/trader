@@ -70,6 +70,7 @@ interface StrategyWithLots {
   positions: Array<{
     id: string;
     symbol: string;
+    referencePrice: string | null;
     positionLots: Array<{
       shares: number;
       costPrice: string;
@@ -102,6 +103,7 @@ async function findStrategiesWithLots(db: DbType, strategyId?: string): Promise<
         positions: posWithLots.map((p) => ({
           id: p.id,
           symbol: p.symbol,
+          referencePrice: p.referencePrice ?? null,
           positionLots: p.positionLots.map((l) => ({
             shares: l.shares,
             costPrice: l.costPrice,
@@ -163,6 +165,7 @@ async function processStrategy(
         symbol: p.symbol,
         totalShares,
         avgCost,
+        referencePrice: p.referencePrice !== null ? parseFloat(p.referencePrice) : null,
         lots: p.positionLots.map((l) => ({
           shares: l.shares,
           costPrice: parseFloat(l.costPrice),
@@ -194,16 +197,39 @@ async function processStrategy(
       })
       .where(eq(monitoringRuns.id, run.id));
 
+    const refPriceUpdates = analysis.referencePriceUpdates;
+    for (const update of refPriceUpdates) {
+      await db
+        .update(positions)
+        .set({ referencePrice: update.newReferencePrice.toFixed(4) })
+        .where(and(
+          eq(positions.strategyId, strategy.id),
+          eq(positions.symbol, update.symbol)
+        ));
+      console.log(`[monitoring] Strategy ${strategy.name}: ${update.symbol} referencePrice updated to ${update.newReferencePrice}`);
+    }
+
+    const refPriceNote = refPriceUpdates.length > 0
+      ? "\n\n**参考价变更：**\n" + refPriceUpdates.map((u) => `- ${u.symbol} 参考价已更新为 $${u.newReferencePrice.toFixed(2)}`).join("\n")
+      : "";
+
     if (analysis.hasActionItems) {
       await db.insert(notifications).values({
         monitoringRunId: run.id,
         title: analysis.actionSummary ?? "Action required",
-        content: analysis.analysis.slice(0, 500),
+        content: (analysis.analysis.slice(0, 400) + refPriceNote).slice(0, 500),
+        isRead: false,
+      });
+    } else if (refPriceUpdates.length > 0) {
+      await db.insert(notifications).values({
+        monitoringRunId: run.id,
+        title: "参考价更新",
+        content: refPriceNote.trim().slice(0, 500),
         isRead: false,
       });
     }
 
-    console.log(`[monitoring] Strategy ${strategy.name}: completed, actionItems=${analysis.hasActionItems}`);
+    console.log(`[monitoring] Strategy ${strategy.name}: completed, actionItems=${analysis.hasActionItems}, refPriceUpdates=${refPriceUpdates.length}`);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     await db
