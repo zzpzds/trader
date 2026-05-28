@@ -22,6 +22,7 @@ exports.positions = (0, pg_core_1.pgTable)("positions", {
         .notNull()
         .references(() => exports.strategies.id, { onDelete: "cascade" }),
     symbol: (0, pg_core_1.text)("symbol").notNull(),
+    referencePrice: (0, pg_core_1.numeric)("reference_price", { precision: 15, scale: 4 }),
     createdAt: (0, pg_core_1.timestamp)("created_at").notNull().defaultNow(),
     updatedAt: (0, pg_core_1.timestamp)("updated_at").notNull().defaultNow(),
 }, (t) => [(0, pg_core_1.uniqueIndex)("positions_strategy_id_symbol_idx").on(t.strategyId, t.symbol)]);

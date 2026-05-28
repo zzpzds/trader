@@ -52,6 +52,7 @@ const schema_1 = require("./schema");
         (0, vitest_1.expect)(columns).toContain("id");
         (0, vitest_1.expect)(columns).toContain("strategyId");
         (0, vitest_1.expect)(columns).toContain("symbol");
+        (0, vitest_1.expect)(columns).toContain("referencePrice");
         (0, vitest_1.expect)(columns).toContain("createdAt");
         (0, vitest_1.expect)(columns).toContain("updatedAt");
     });
@@ -91,9 +92,10 @@ const schema_1 = require("./schema");
         (0, vitest_1.expect)(mod).not.toHaveProperty("backtests");
         (0, vitest_1.expect)(mod).not.toHaveProperty("priceCache");
     });
-    (0, vitest_1.it)("positionLots.shares is numeric (supports decimals)", () => {
-        // drizzle numeric columns have dataType "custom" and columnType "PgNumeric"
+    (0, vitest_1.it)("positionLots.shares is numeric(15,4) (supports decimals)", () => {
         const col = schema_1.positionLots.shares;
         (0, vitest_1.expect)(col.columnType).toBe("PgNumeric");
+        (0, vitest_1.expect)(col.precision).toBe(15);
+        (0, vitest_1.expect)(col.scale).toBe(4);
     });
 });

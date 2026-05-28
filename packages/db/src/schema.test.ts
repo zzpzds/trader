@@ -25,6 +25,7 @@ describe("schema exports", () => {
     expect(columns).toContain("id");
     expect(columns).toContain("strategyId");
     expect(columns).toContain("symbol");
+    expect(columns).toContain("referencePrice");
     expect(columns).toContain("createdAt");
     expect(columns).toContain("updatedAt");
   });

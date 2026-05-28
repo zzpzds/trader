@@ -32,6 +32,7 @@ export const positions = pgTable(
       .notNull()
       .references(() => strategies.id, { onDelete: "cascade" }),
     symbol: text("symbol").notNull(),
+    referencePrice: numeric("reference_price", { precision: 15, scale: 4 }),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
