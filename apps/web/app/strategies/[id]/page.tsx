@@ -24,6 +24,7 @@ interface Strategy {
 interface Position {
   id: string;
   symbol: string;
+  referencePrice: string | null;
   latestPrice: number | null;
   positionLots: Lot[];
 }
@@ -83,6 +84,8 @@ export default function StrategyDetailPage() {
   const [reparseEditSymbols, setReparseEditSymbols] = useState<string[]>([]);
   const [reparsing, setReparsing] = useState(false);
   const [savingReparse, setSavingReparse] = useState(false);
+  const [editingRefPriceId, setEditingRefPriceId] = useState<string | null>(null);
+  const [refPriceInput, setRefPriceInput] = useState("");
 
   const fetchStrategy = useCallback(async () => {
     const res = await fetch(`/api/strategies/${id}`);
@@ -140,6 +143,21 @@ export default function StrategyDetailPage() {
 
   async function handleDeleteLot(lotId: string) {
     await fetch(`/api/lots/${lotId}`, { method: "DELETE" });
+    fetchPositions();
+  }
+
+  async function handleSaveRefPrice(positionId: string) {
+    const trimmed = refPriceInput.trim();
+    if (!trimmed) {
+      setEditingRefPriceId(null);
+      return;
+    }
+    await fetch(`/api/strategies/${id}/positions/${positionId}/reference-price`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ referencePrice: trimmed }),
+    });
+    setEditingRefPriceId(null);
     fetchPositions();
   }
 
@@ -611,10 +629,55 @@ export default function StrategyDetailPage() {
       return (
         <div key={pos.id} className="rounded-lg border bg-card p-4">
           <div className="flex items-center justify-between flex-wrap gap-1 mb-3">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="font-semibold">{pos.symbol}</span>
               <span className="text-sm text-muted-foreground">
                 {formatShares(totalShares)} 股 @ ${avgCost.toFixed(2)}
+              </span>
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                参考价：
+                {editingRefPriceId === pos.id ? (
+                  <>
+                    <input
+                      className="w-24 text-xs border-b border-primary bg-transparent outline-none tabular-nums"
+                      value={refPriceInput}
+                      autoFocus
+                      onChange={(e) => setRefPriceInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSaveRefPrice(pos.id);
+                        if (e.key === "Escape") setEditingRefPriceId(null);
+                      }}
+                    />
+                    <button
+                      className="text-primary hover:text-primary/80 text-xs"
+                      onClick={() => handleSaveRefPrice(pos.id)}
+                    >
+                      确认
+                    </button>
+                    <button
+                      className="text-muted-foreground hover:text-foreground text-xs"
+                      onClick={() => setEditingRefPriceId(null)}
+                    >
+                      取消
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="tabular-nums">
+                      {pos.referencePrice ? `$${parseFloat(pos.referencePrice).toFixed(2)}` : "未设定"}
+                    </span>
+                    <button
+                      aria-label="edit reference price"
+                      className="text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={() => {
+                        setRefPriceInput(pos.referencePrice ?? "");
+                        setEditingRefPriceId(pos.id);
+                      }}
+                    >
+                      <Edit2 size={11} />
+                    </button>
+                  </>
+                )}
               </span>
             </div>
             {pos.latestPrice !== null ? (
