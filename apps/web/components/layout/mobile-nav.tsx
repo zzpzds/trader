@@ -8,14 +8,14 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   {
-    href: "/strategies",
-    label: "策略库",
-    icon: BookOpen,
-  },
-  {
     href: "/positions",
     label: "持仓",
     icon: BarChart3,
+  },
+  {
+    href: "/strategies",
+    label: "策略库",
+    icon: BookOpen,
   },
   {
     href: "/monitoring",
