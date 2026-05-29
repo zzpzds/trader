@@ -2,9 +2,12 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { PieChart, Pie, Cell, Tooltip } from "recharts";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PnlChart } from "@/components/pnl-chart";
+
+const PIE_COLORS = ["#6366f1", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#3b82f6", "#ec4899", "#14b8a6"];
 
 interface StrategyPositions {
   strategyId: string;
@@ -79,6 +82,22 @@ export default function PositionsPage() {
 
   const usdFormat: Intl.NumberFormatOptions = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
 
+  const strategyValues = data
+    .map(({ strategyName, positions }) => {
+      const value = positions.reduce((sum, pos) => {
+        const shares = pos.positionLots.reduce((s, l) => s + parseFloat(l.shares), 0);
+        const price = pos.latestPrice ?? (
+          shares > 0
+            ? pos.positionLots.reduce((s, l) => s + parseFloat(l.shares) * parseFloat(l.costPrice), 0) / shares
+            : 0
+        );
+        return sum + shares * price;
+      }, 0);
+      return { name: strategyName, value: Math.round(value * 100) / 100 };
+    })
+    .filter((s) => s.value > 0);
+  const totalStrategyValue = strategyValues.reduce((s, v) => s + v.value, 0);
+
   return (
     <div className="p-4 md:p-6 max-w-none md:max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-4">持仓管理</h1>
@@ -93,32 +112,74 @@ export default function PositionsPage() {
           ) : summary && summary.coveredPositions === 0 ? (
             <p className="text-sm text-muted-foreground">暂无价格数据</p>
           ) : summary && (
-            <div className="flex items-end gap-6 flex-wrap">
-              <div>
-                <p className="text-xs text-muted-foreground">总成本</p>
-                <p className="text-base font-medium">
-                  ${summary.totalCost.toLocaleString("en-US", usdFormat)}
-                </p>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-end gap-6 flex-wrap">
+                <div>
+                  <p className="text-xs text-muted-foreground">总成本</p>
+                  <p className="text-base font-medium">
+                    ${summary.totalCost.toLocaleString("en-US", usdFormat)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">当前市值</p>
+                  <p className="text-base font-medium">
+                    ${summary.totalValue.toLocaleString("en-US", usdFormat)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">收益</p>
+                  <p className={`text-base font-semibold ${summary.absolutePnl >= 0 ? "text-red-600" : "text-green-600"}`}>
+                    {summary.absolutePnl >= 0 ? "+" : ""}${summary.absolutePnl.toLocaleString("en-US", usdFormat)}&nbsp;
+                    <span className="text-sm font-medium">
+                      {summary.percentPnl >= 0 ? "+" : ""}{summary.percentPnl.toFixed(2)}%
+                    </span>
+                  </p>
+                </div>
+                {summary.coveredPositions < summary.totalPositions && (
+                  <p className="text-xs text-muted-foreground self-end">
+                    基于 {summary.coveredPositions}/{summary.totalPositions} 个持仓的价格数据
+                  </p>
+                )}
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">当前市值</p>
-                <p className="text-base font-medium">
-                  ${summary.totalValue.toLocaleString("en-US", usdFormat)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">收益</p>
-                <p className={`text-base font-semibold ${summary.absolutePnl >= 0 ? "text-red-600" : "text-green-600"}`}>
-                  {summary.absolutePnl >= 0 ? "+" : ""}${summary.absolutePnl.toLocaleString("en-US", usdFormat)}&nbsp;
-                  <span className="text-sm font-medium">
-                    {summary.percentPnl >= 0 ? "+" : ""}{summary.percentPnl.toFixed(2)}%
-                  </span>
-                </p>
-              </div>
-              {summary.coveredPositions < summary.totalPositions && (
-                <p className="text-xs text-muted-foreground ml-auto self-end">
-                  基于 {summary.coveredPositions}/{summary.totalPositions} 个持仓的价格数据
-                </p>
+
+              {strategyValues.length > 0 && (
+                <div className="flex items-center gap-3 shrink-0">
+                  <PieChart width={80} height={80}>
+                    <Pie
+                      data={strategyValues}
+                      cx={35}
+                      cy={35}
+                      innerRadius={22}
+                      outerRadius={36}
+                      dataKey="value"
+                      strokeWidth={1}
+                    >
+                      {strategyValues.map((_, i) => (
+                        <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value: number, _: string, entry: { payload?: { name?: string } }) => [
+                        `${((value / totalStrategyValue) * 100).toFixed(1)}%`,
+                        entry.payload?.name ?? "",
+                      ]}
+                    />
+                  </PieChart>
+                  <div className="space-y-1">
+                    {strategyValues.map((s, i) => (
+                      <div key={s.name} className="flex items-center gap-1.5">
+                        <span
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
+                        />
+                        <span className="text-xs text-muted-foreground truncate max-w-[100px]">{s.name}</span>
+                        <span className="text-xs font-medium ml-auto pl-2">
+                          {((s.value / totalStrategyValue) * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           )}
