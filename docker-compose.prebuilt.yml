@@ -1,0 +1,31 @@
+# =============================================================================
+# FALLBACK DEPLOYMENT MODE — only use when the server can't build the web image
+# =============================================================================
+#
+# Primary mode (default): just `docker compose up -d` on the server. Postgres,
+# worker, AND web all build from source via the root Dockerfile. This is the
+# canonical path; use it whenever the server has enough RAM/CPU to run the
+# Next.js build.
+#
+# Fallback mode (this file): for resource-constrained servers (e.g. small
+# Aliyun ECS instances) where `docker build` for web OOMs. Web ships as a
+# Next.js standalone bundle built locally on a developer machine and uploaded
+# to ./deploy/web on the server. Worker still builds from source on the
+# server — its build is light enough.
+#
+# Activate by adding `-f docker-compose.prebuilt.yml` to every compose call:
+#   docker compose -f docker-compose.yml -f docker-compose.prebuilt.yml up -d
+#
+# See docs/deploy.md for the full fallback workflow (build → upload → restart).
+#
+# Requires Docker Compose v2.20+ for `!reset`. If older, drop web's `build:`
+# stanza in docker-compose.yml directly instead of using this override.
+
+services:
+  web:
+    build: !reset null
+    image: node:20-alpine
+    volumes:
+      - ./deploy/web:/app:ro
+    working_dir: /app
+    command: node apps/web/server.js
