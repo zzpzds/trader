@@ -25,6 +25,13 @@ services:
   web:
     build: !reset null
     image: node:20-alpine
+    # Next.js standalone reads PORT/HOSTNAME at startup — without these it
+    # binds 127.0.0.1:3000 inside the container and the 80:80 host mapping
+    # routes nowhere. The original Dockerfile sets these as ENV; we have to
+    # re-add them since we're using the public node image.
+    environment:
+      HOSTNAME: 0.0.0.0
+      PORT: "80"
     volumes:
       - ./deploy/web:/app:ro
     working_dir: /app
