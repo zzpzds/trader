@@ -90,6 +90,23 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const newsSummaries = pgTable(
+  "news_summaries",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    strategyId: text("strategy_id")
+      .notNull()
+      .references(() => strategies.id, { onDelete: "cascade" }),
+    summaryDate: text("summary_date").notNull(),
+    content: text("content").notNull(),
+    rawArticles: jsonb("raw_articles").$type<Array<{ title: string; url: string; content: string }>>(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("news_summaries_strategy_date_idx").on(t.strategyId, t.summaryDate)]
+);
+
 export type StrategyRow = typeof strategies.$inferSelect;
 export type NewStrategyRow = typeof strategies.$inferInsert;
 export type PositionRow = typeof positions.$inferSelect;
@@ -100,10 +117,13 @@ export type MonitoringRunRow = typeof monitoringRuns.$inferSelect;
 export type NewMonitoringRunRow = typeof monitoringRuns.$inferInsert;
 export type NotificationRow = typeof notifications.$inferSelect;
 export type NewNotificationRow = typeof notifications.$inferInsert;
+export type NewsSummaryRow = typeof newsSummaries.$inferSelect;
+export type NewNewsSummaryRow = typeof newsSummaries.$inferInsert;
 
 export const strategiesRelations = relations(strategies, ({ many }) => ({
   positions: many(positions),
   monitoringRuns: many(monitoringRuns),
+  newsSummaries: many(newsSummaries),
 }));
 
 export const positionsRelations = relations(positions, ({ one, many }) => ({
@@ -132,5 +152,12 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
   monitoringRun: one(monitoringRuns, {
     fields: [notifications.monitoringRunId],
     references: [monitoringRuns.id],
+  }),
+}));
+
+export const newsSummariesRelations = relations(newsSummaries, ({ one }) => ({
+  strategy: one(strategies, {
+    fields: [newsSummaries.strategyId],
+    references: [strategies.id],
   }),
 }));

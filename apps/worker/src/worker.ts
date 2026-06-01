@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "@trader/db";
 import { runMonitoringJob } from "./monitoring/job.js";
+import { runNewsJob } from "./news/job.js";
 
 export function createWorker(databaseUrl: string) {
   const boss = new PgBoss({ connectionString: databaseUrl });
@@ -28,6 +29,14 @@ export function createWorker(databaseUrl: string) {
 
       await boss.schedule("daily-monitoring", "0 2 * * *");
       console.log("[worker] started, daily-monitoring cron registered (0 2 * * * UTC)");
+
+      await boss.createQueue("daily-news");
+      await boss.work("daily-news", async () => {
+        console.log("[worker] daily-news job triggered");
+        await runNewsJob(db);
+      });
+      await boss.schedule("daily-news", "30 1 * * *");
+      console.log("[worker] daily-news cron registered (30 1 * * * UTC = 09:30 CST)");
     },
     async stop() {
       await boss.stop({ graceful: true, timeout: 10_000 });

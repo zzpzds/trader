@@ -5,6 +5,7 @@ import {
   positionLots,
   monitoringRuns,
   notifications,
+  newsSummaries,
 } from "./schema";
 
 describe("schema exports", () => {
@@ -75,5 +76,15 @@ describe("schema exports", () => {
     expect(col.columnType).toBe("PgNumeric");
     expect(col.precision).toBe(15);
     expect(col.scale).toBe(4);
+  });
+
+  it("newsSummaries table has required columns", () => {
+    const columns = Object.keys(newsSummaries);
+    expect(columns).toContain("id");
+    expect(columns).toContain("strategyId");
+    expect(columns).toContain("summaryDate");
+    expect(columns).toContain("content");
+    expect(columns).toContain("rawArticles");
+    expect(columns).toContain("createdAt");
   });
 });

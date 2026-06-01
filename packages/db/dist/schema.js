@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.notificationsRelations = exports.monitoringRunsRelations = exports.positionLotsRelations = exports.positionsRelations = exports.strategiesRelations = exports.notifications = exports.monitoringRuns = exports.positionLots = exports.positions = exports.strategies = void 0;
+exports.newsSummariesRelations = exports.notificationsRelations = exports.monitoringRunsRelations = exports.positionLotsRelations = exports.positionsRelations = exports.strategiesRelations = exports.newsSummaries = exports.notifications = exports.monitoringRuns = exports.positionLots = exports.positions = exports.strategies = void 0;
 const pg_core_1 = require("drizzle-orm/pg-core");
 const drizzle_orm_1 = require("drizzle-orm");
 exports.strategies = (0, pg_core_1.pgTable)("strategies", {
@@ -70,9 +70,22 @@ exports.notifications = (0, pg_core_1.pgTable)("notifications", {
     isRead: (0, pg_core_1.boolean)("is_read").notNull().default(false),
     createdAt: (0, pg_core_1.timestamp)("created_at").notNull().defaultNow(),
 });
+exports.newsSummaries = (0, pg_core_1.pgTable)("news_summaries", {
+    id: (0, pg_core_1.text)("id")
+        .primaryKey()
+        .$defaultFn(() => crypto.randomUUID()),
+    strategyId: (0, pg_core_1.text)("strategy_id")
+        .notNull()
+        .references(() => exports.strategies.id, { onDelete: "cascade" }),
+    summaryDate: (0, pg_core_1.text)("summary_date").notNull(),
+    content: (0, pg_core_1.text)("content").notNull(),
+    rawArticles: (0, pg_core_1.jsonb)("raw_articles").$type(),
+    createdAt: (0, pg_core_1.timestamp)("created_at").notNull().defaultNow(),
+}, (t) => [(0, pg_core_1.uniqueIndex)("news_summaries_strategy_date_idx").on(t.strategyId, t.summaryDate)]);
 exports.strategiesRelations = (0, drizzle_orm_1.relations)(exports.strategies, ({ many }) => ({
     positions: many(exports.positions),
     monitoringRuns: many(exports.monitoringRuns),
+    newsSummaries: many(exports.newsSummaries),
 }));
 exports.positionsRelations = (0, drizzle_orm_1.relations)(exports.positions, ({ one, many }) => ({
     strategy: one(exports.strategies, {
@@ -97,5 +110,11 @@ exports.notificationsRelations = (0, drizzle_orm_1.relations)(exports.notificati
     monitoringRun: one(exports.monitoringRuns, {
         fields: [exports.notifications.monitoringRunId],
         references: [exports.monitoringRuns.id],
+    }),
+}));
+exports.newsSummariesRelations = (0, drizzle_orm_1.relations)(exports.newsSummaries, ({ one }) => ({
+    strategy: one(exports.strategies, {
+        fields: [exports.newsSummaries.strategyId],
+        references: [exports.strategies.id],
     }),
 }));

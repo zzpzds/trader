@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, BarChart3, Eye, Bell } from "lucide-react";
+import { BookOpen, BarChart3, Eye, Bell, Newspaper } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -11,6 +11,11 @@ const navItems = [
     href: "/positions",
     label: "持仓",
     icon: BarChart3,
+  },
+  {
+    href: "/news",
+    label: "热点",
+    icon: Newspaper,
   },
   {
     href: "/strategies",

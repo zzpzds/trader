@@ -632,6 +632,125 @@ export declare const notifications: import("drizzle-orm/pg-core").PgTableWithCol
     };
     dialect: "pg";
 }>;
+export declare const newsSummaries: import("drizzle-orm/pg-core").PgTableWithColumns<{
+    name: "news_summaries";
+    schema: undefined;
+    columns: {
+        id: import("drizzle-orm/pg-core").PgColumn<{
+            name: "id";
+            tableName: "news_summaries";
+            dataType: "string";
+            columnType: "PgText";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: true;
+            isPrimaryKey: true;
+            isAutoincrement: false;
+            hasRuntimeDefault: true;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        strategyId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "strategy_id";
+            tableName: "news_summaries";
+            dataType: "string";
+            columnType: "PgText";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        summaryDate: import("drizzle-orm/pg-core").PgColumn<{
+            name: "summary_date";
+            tableName: "news_summaries";
+            dataType: "string";
+            columnType: "PgText";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        content: import("drizzle-orm/pg-core").PgColumn<{
+            name: "content";
+            tableName: "news_summaries";
+            dataType: "string";
+            columnType: "PgText";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        rawArticles: import("drizzle-orm/pg-core").PgColumn<{
+            name: "raw_articles";
+            tableName: "news_summaries";
+            dataType: "json";
+            columnType: "PgJsonb";
+            data: {
+                title: string;
+                url: string;
+                content: string;
+            }[];
+            driverParam: unknown;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            $type: {
+                title: string;
+                url: string;
+                content: string;
+            }[];
+        }>;
+        createdAt: import("drizzle-orm/pg-core").PgColumn<{
+            name: "created_at";
+            tableName: "news_summaries";
+            dataType: "date";
+            columnType: "PgTimestamp";
+            data: Date;
+            driverParam: string;
+            notNull: true;
+            hasDefault: true;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+    };
+    dialect: "pg";
+}>;
 export type StrategyRow = typeof strategies.$inferSelect;
 export type NewStrategyRow = typeof strategies.$inferInsert;
 export type PositionRow = typeof positions.$inferSelect;
@@ -642,9 +761,12 @@ export type MonitoringRunRow = typeof monitoringRuns.$inferSelect;
 export type NewMonitoringRunRow = typeof monitoringRuns.$inferInsert;
 export type NotificationRow = typeof notifications.$inferSelect;
 export type NewNotificationRow = typeof notifications.$inferInsert;
+export type NewsSummaryRow = typeof newsSummaries.$inferSelect;
+export type NewNewsSummaryRow = typeof newsSummaries.$inferInsert;
 export declare const strategiesRelations: import("drizzle-orm").Relations<"strategies", {
     positions: import("drizzle-orm").Many<"positions">;
     monitoringRuns: import("drizzle-orm").Many<"monitoring_runs">;
+    newsSummaries: import("drizzle-orm").Many<"news_summaries">;
 }>;
 export declare const positionsRelations: import("drizzle-orm").Relations<"positions", {
     strategy: import("drizzle-orm").One<"strategies", true>;
@@ -658,4 +780,7 @@ export declare const monitoringRunsRelations: import("drizzle-orm").Relations<"m
 }>;
 export declare const notificationsRelations: import("drizzle-orm").Relations<"notifications", {
     monitoringRun: import("drizzle-orm").One<"monitoring_runs", true>;
+}>;
+export declare const newsSummariesRelations: import("drizzle-orm").Relations<"news_summaries", {
+    strategy: import("drizzle-orm").One<"strategies", true>;
 }>;

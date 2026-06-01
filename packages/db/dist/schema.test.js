@@ -98,4 +98,13 @@ const schema_1 = require("./schema");
         (0, vitest_1.expect)(col.precision).toBe(15);
         (0, vitest_1.expect)(col.scale).toBe(4);
     });
+    (0, vitest_1.it)("newsSummaries table has required columns", () => {
+        const columns = Object.keys(schema_1.newsSummaries);
+        (0, vitest_1.expect)(columns).toContain("id");
+        (0, vitest_1.expect)(columns).toContain("strategyId");
+        (0, vitest_1.expect)(columns).toContain("summaryDate");
+        (0, vitest_1.expect)(columns).toContain("content");
+        (0, vitest_1.expect)(columns).toContain("rawArticles");
+        (0, vitest_1.expect)(columns).toContain("createdAt");
+    });
 });

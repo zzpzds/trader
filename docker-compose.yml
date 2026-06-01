@@ -49,6 +49,7 @@ services:
       ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL}
       ALPHAVANTAGE_API_KEY: ${ALPHAVANTAGE_API_KEY}
+      TAVILY_API_KEY: ${TAVILY_API_KEY}
     mem_limit: 384m
     command: node --max-old-space-size=192 dist/index.js
 
