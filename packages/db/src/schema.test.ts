@@ -6,6 +6,7 @@ import {
   monitoringRuns,
   notifications,
   newsSummaries,
+  priceSnapshots,
 } from "./schema";
 
 describe("schema exports", () => {
@@ -108,5 +109,17 @@ describe("schema exports", () => {
     expect(columns).toContain("content");
     expect(columns).toContain("rawArticles");
     expect(columns).toContain("createdAt");
+  });
+
+  it("priceSnapshots table has required OHLCV columns", () => {
+    const columns = Object.keys(priceSnapshots);
+    expect(columns).toContain("symbol");
+    expect(columns).toContain("date");
+    expect(columns).toContain("open");
+    expect(columns).toContain("high");
+    expect(columns).toContain("low");
+    expect(columns).toContain("close");
+    expect(columns).toContain("volume");
+    expect(columns).toContain("fetchedAt");
   });
 });

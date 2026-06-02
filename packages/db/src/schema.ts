@@ -6,9 +6,12 @@ import {
   numeric,
   boolean,
   integer,
+  bigint,
+  date,
   uniqueIndex,
   unique,
   index,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -126,6 +129,27 @@ export type NotificationRow = typeof notifications.$inferSelect;
 export type NewNotificationRow = typeof notifications.$inferInsert;
 export type NewsSummaryRow = typeof newsSummaries.$inferSelect;
 export type NewNewsSummaryRow = typeof newsSummaries.$inferInsert;
+
+export const priceSnapshots = pgTable(
+  "price_snapshots",
+  {
+    symbol: text("symbol").notNull(),
+    date: date("date").notNull(),
+    open: numeric("open", { precision: 15, scale: 4 }).notNull(),
+    high: numeric("high", { precision: 15, scale: 4 }).notNull(),
+    low: numeric("low", { precision: 15, scale: 4 }).notNull(),
+    close: numeric("close", { precision: 15, scale: 4 }).notNull(),
+    volume: bigint("volume", { mode: "bigint" }),
+    fetchedAt: timestamp("fetched_at").notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.symbol, t.date] }),
+    index("price_snapshots_symbol_date_desc_idx").on(t.symbol, t.date.desc()),
+  ]
+);
+
+export type PriceSnapshotRow = typeof priceSnapshots.$inferSelect;
+export type NewPriceSnapshotRow = typeof priceSnapshots.$inferInsert;
 
 export const strategiesRelations = relations(strategies, ({ many }) => ({
   positions: many(positions),
