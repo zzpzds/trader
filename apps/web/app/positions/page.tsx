@@ -46,11 +46,14 @@ export default function PositionsPage() {
 function PositionsPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const tab = searchParams.get("tab") === "manual" ? "manual" : "strategies";
+  const initialTab = searchParams.get("tab") === "manual" ? "manual" : "strategies";
+  const [tab, setTabState] = useState<"strategies" | "manual">(initialTab);
 
   function setTab(next: string) {
+    const value = next === "manual" ? "manual" : "strategies";
+    setTabState(value);
     const params = new URLSearchParams(searchParams.toString());
-    params.set("tab", next);
+    params.set("tab", value);
     router.replace(`/positions?${params.toString()}`);
   }
 
