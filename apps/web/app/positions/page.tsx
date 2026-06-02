@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { PieChart, Pie, Cell, Tooltip } from "recharts";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PnlChart } from "@/components/pnl-chart";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 const PIE_COLORS = ["#6366f1", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#3b82f6", "#ec4899", "#14b8a6"];
 
@@ -33,6 +35,16 @@ interface SummaryData {
 }
 
 export default function PositionsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tab = searchParams.get("tab") === "manual" ? "manual" : "strategies";
+
+  function setTab(next: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", next);
+    router.replace(`/positions?${params.toString()}`);
+  }
+
   const [data, setData] = useState<StrategyPositions[]>([]);
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
@@ -188,11 +200,18 @@ export default function PositionsPage() {
 
       <PnlChart fetchUrl="/api/positions/history" />
 
-      {data.length === 0 && (
-        <p className="text-muted-foreground text-center py-10">暂无持仓</p>
-      )}
+      <Tabs value={tab} onValueChange={setTab} className="mt-4">
+        <TabsList>
+          <TabsTrigger value="strategies">策略持仓</TabsTrigger>
+          <TabsTrigger value="manual">手动持仓</TabsTrigger>
+        </TabsList>
 
-      {data.map(({ strategyId, strategyName, positions }) => (
+        <TabsContent value="strategies">
+          {data.length === 0 && (
+            <p className="text-muted-foreground text-center py-10">暂无持仓</p>
+          )}
+
+          {data.map(({ strategyId, strategyName, positions }) => (
         <div key={strategyId} className="mb-6">
           <h2 className="text-lg font-semibold mb-2">
             <Link href={`/strategies/${strategyId}`} className="hover:underline">
@@ -247,6 +266,12 @@ export default function PositionsPage() {
           </div>
         </div>
       ))}
+        </TabsContent>
+
+        <TabsContent value="manual">
+          <p className="text-muted-foreground text-center py-10">即将到来</p>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
