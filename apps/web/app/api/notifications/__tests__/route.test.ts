@@ -5,13 +5,20 @@ const { mockFindMany } = vi.hoisted(() => ({
   mockFindMany: vi.fn(),
 }));
 
-vi.mock("@/lib/db", () => ({
-  db: {
-    query: {
-      notifications: { findMany: mockFindMany },
+vi.mock("@/lib/db", () => {
+  const subquery = {
+    from: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
+  };
+  return {
+    db: {
+      query: {
+        notifications: { findMany: mockFindMany },
+      },
+      select: vi.fn(() => subquery),
     },
-  },
-}));
+  };
+});
 
 import { GET } from "../route";
 
@@ -81,24 +88,25 @@ describe("GET /api/notifications", () => {
     expect(data.weekActionCount).toBe(1);
   });
 
-  it("passes where function when status=unread", async () => {
+  it("passes where SQL when status=unread", async () => {
     mockFindMany.mockResolvedValueOnce([]);
 
     await GET(makeRequest({ status: "unread" }));
 
     expect(mockFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.any(Function) })
+      expect.objectContaining({ where: expect.anything() })
     );
+    const arg = mockFindMany.mock.calls[0][0];
+    expect(arg.where).toBeDefined();
   });
 
-  it("passes where function when strategyId provided", async () => {
+  it("passes where SQL when strategyId provided", async () => {
     mockFindMany.mockResolvedValueOnce([]);
 
     await GET(makeRequest({ strategyId: "strat-1" }));
 
-    expect(mockFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.any(Function) })
-    );
+    const arg = mockFindMany.mock.calls[0][0];
+    expect(arg.where).toBeDefined();
   });
 
   it("passes undefined where when no filters", async () => {

@@ -1,31 +1,35 @@
 export const dynamic = "force-dynamic";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { notifications } from "@trader/db";
+import { notifications, monitoringRuns } from "@trader/db";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status") || "all";
   const strategyIdParam = searchParams.get("strategyId");
 
-  const whereParts: ((...args: any[]) => any)[] = [];
+  const conditions = [];
 
   if (status === "unread") {
-    whereParts.push((n: any, { eq }: any) => eq(n.isRead, false));
+    conditions.push(eq(notifications.isRead, false));
   } else if (status === "read") {
-    whereParts.push((n: any, { eq }: any) => eq(n.isRead, true));
+    conditions.push(eq(notifications.isRead, true));
   }
 
   if (strategyIdParam) {
-    whereParts.push((n: any, { eq }: any) =>
-      eq(n.monitoringRun.strategyId, strategyIdParam)
+    conditions.push(
+      inArray(
+        notifications.monitoringRunId,
+        db
+          .select({ id: monitoringRuns.id })
+          .from(monitoringRuns)
+          .where(eq(monitoringRuns.strategyId, strategyIdParam))
+      )
     );
   }
 
   const rows = await db.query.notifications.findMany({
-    where: whereParts.length > 0
-      ? (n: any, ops: any) => and(...whereParts.map((fn) => fn(n, ops)))
-      : undefined,
+    where: conditions.length > 0 ? and(...conditions) : undefined,
     with: {
       monitoringRun: {
         columns: { strategyId: true, hasActionItems: true },
