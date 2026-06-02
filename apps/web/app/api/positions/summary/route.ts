@@ -1,22 +1,27 @@
 export const dynamic = "force-dynamic";
+import { eq, desc } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { priceSnapshots } from "@trader/db";
 
 export async function GET() {
   const allPositions = await db.query.positions.findMany({
     with: { positionLots: true },
   });
 
-  const allRuns = await db.query.monitoringRuns.findMany({
-    orderBy: (r, { desc }) => [desc(r.createdAt)],
-  });
+  const symbols = [...new Set(allPositions.map((p: any) => p.symbol))];
 
-  // Latest run per strategy (runs are already sorted newest-first)
-  const latestPrices = new Map<string, Record<string, number>>();
-  for (const run of allRuns) {
-    if (!latestPrices.has(run.strategyId) && run.prices) {
-      latestPrices.set(run.strategyId, run.prices as Record<string, number>);
-    }
-  }
+  const priceBySymbol: Record<string, number> = {};
+  await Promise.all(
+    symbols.map(async (symbol) => {
+      const rows = await db
+        .select({ close: priceSnapshots.close })
+        .from(priceSnapshots)
+        .where(eq(priceSnapshots.symbol, symbol))
+        .orderBy(desc(priceSnapshots.date))
+        .limit(1);
+      if (rows[0]?.close != null) priceBySymbol[symbol] = parseFloat(rows[0].close);
+    })
+  );
 
   let totalCost = 0;
   let coveredCost = 0;
@@ -24,18 +29,23 @@ export async function GET() {
   let coveredPositions = 0;
   const totalPositions = allPositions.length;
 
-  for (const pos of allPositions) {
-    const { positionLots, strategyId, symbol } = pos;
-    if (positionLots.length === 0) continue;
+  for (const pos of allPositions as any[]) {
+    if (pos.positionLots.length === 0) continue;
 
-    const shares = positionLots.reduce((s, l) => s + parseFloat(l.shares), 0);
-    const cost = positionLots.reduce((s, l) => s + parseFloat(l.shares) * parseFloat(l.costPrice), 0);
+    const shares = pos.positionLots.reduce(
+      (s: number, l: any) => s + parseFloat(l.shares),
+      0
+    );
+    const cost = pos.positionLots.reduce(
+      (s: number, l: any) => s + parseFloat(l.shares) * parseFloat(l.costPrice),
+      0
+    );
     totalCost += cost;
 
-    const latestPrice = latestPrices.get(strategyId)?.[symbol];
-    if (latestPrice !== undefined) {
+    const price = priceBySymbol[pos.symbol];
+    if (price !== undefined) {
       coveredCost += cost;
-      totalValue += shares * latestPrice;
+      totalValue += shares * price;
       coveredPositions++;
     }
   }

@@ -1,21 +1,28 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { mockPositionsFindMany, mockRunsFindMany } = vi.hoisted(() => ({
+const { mockPositionsFindMany, mockSelect } = vi.hoisted(() => ({
   mockPositionsFindMany: vi.fn(),
-  mockRunsFindMany: vi.fn(),
+  mockSelect: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({
   db: {
-    query: {
-      positions: { findMany: mockPositionsFindMany },
-      monitoringRuns: { findMany: mockRunsFindMany },
-    },
+    query: { positions: { findMany: mockPositionsFindMany } },
+    select: mockSelect,
   },
 }));
 
 import { GET } from "../route";
+
+function makeSnapshotChain(closeValue: string | null) {
+  return {
+    from: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
+    orderBy: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockResolvedValue(closeValue == null ? [] : [{ close: closeValue }]),
+  };
+}
 
 const posQQQ = {
   id: "pos-1",
@@ -24,19 +31,21 @@ const posQQQ = {
   positionLots: [{ shares: "10", costPrice: "100.0000" }],
 };
 
-const runWithPrices = {
-  id: "run-1",
-  strategyId: "strat-1",
-  prices: { QQQ: 120 },
-  createdAt: new Date("2026-05-25T10:00:00Z"),
+const posManualAAPL = {
+  id: "pos-2",
+  strategyId: null,
+  symbol: "AAPL",
+  positionLots: [{ shares: "5", costPrice: "150.0000" }],
 };
 
 describe("GET /api/positions/summary", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    mockPositionsFindMany.mockReset();
+    mockSelect.mockReset();
+  });
 
   it("returns zeros when no positions exist", async () => {
     mockPositionsFindMany.mockResolvedValueOnce([]);
-    mockRunsFindMany.mockResolvedValueOnce([]);
 
     const res = await GET();
     const data = await res.json();
@@ -51,69 +60,60 @@ describe("GET /api/positions/summary", () => {
     });
   });
 
-  it("calculates pnl for a position with a price", async () => {
-    mockPositionsFindMany.mockResolvedValueOnce([posQQQ]);
-    mockRunsFindMany.mockResolvedValueOnce([runWithPrices]);
+  it("aggregates strategy + manual positions; reads latest price from price_snapshots", async () => {
+    mockPositionsFindMany.mockResolvedValueOnce([posQQQ, posManualAAPL]);
+    mockSelect
+      .mockReturnValueOnce(makeSnapshotChain("120"))     // QQQ
+      .mockReturnValueOnce(makeSnapshotChain("160"));    // AAPL
 
     const res = await GET();
     const data = await res.json();
 
-    expect(data.totalCost).toBe(1000);    // 10 * 100
-    expect(data.totalValue).toBe(1200);   // 10 * 120
-    expect(data.absolutePnl).toBe(200);   // 1200 - 1000
-    expect(data.percentPnl).toBe(20);     // 200/1000 * 100
-    expect(data.coveredPositions).toBe(1);
-    expect(data.totalPositions).toBe(1);
+    expect(data.totalCost).toBe(1750);    // 10*100 + 5*150
+    expect(data.totalValue).toBe(2000);   // 10*120 + 5*160
+    expect(data.absolutePnl).toBe(250);
+    expect(data.coveredPositions).toBe(2);
+    expect(data.totalPositions).toBe(2);
   });
 
   it("includes cost of unpriced positions in totalCost but not in pnl", async () => {
-    const posSPY = {
-      id: "pos-2",
-      strategyId: "strat-2",
-      symbol: "SPY",
-      positionLots: [{ shares: "5", costPrice: "200.0000" }],
-    };
-
-    mockPositionsFindMany.mockResolvedValueOnce([posQQQ, posSPY]);
-    mockRunsFindMany.mockResolvedValueOnce([runWithPrices]); // strat-2 has no run
+    mockPositionsFindMany.mockResolvedValueOnce([posQQQ, posManualAAPL]);
+    mockSelect
+      .mockReturnValueOnce(makeSnapshotChain("120"))     // QQQ priced
+      .mockReturnValueOnce(makeSnapshotChain(null));     // AAPL unpriced
 
     const res = await GET();
     const data = await res.json();
 
-    expect(data.totalCost).toBe(2000);  // 1000 + 1000
-    expect(data.totalValue).toBe(1200); // only QQQ
+    expect(data.totalCost).toBe(1750);   // 1000 + 750
+    expect(data.totalValue).toBe(1200);  // only QQQ
     expect(data.coveredPositions).toBe(1);
     expect(data.totalPositions).toBe(2);
   });
 
-  it("uses the latest monitoring run when multiple exist for a strategy", async () => {
-    const olderRun = {
-      id: "run-old",
-      strategyId: "strat-1",
-      prices: { QQQ: 90 },
-      createdAt: new Date("2026-05-24T10:00:00Z"),
-    };
-
-    mockPositionsFindMany.mockResolvedValueOnce([posQQQ]);
-    // newest first (route queries desc by createdAt)
-    mockRunsFindMany.mockResolvedValueOnce([runWithPrices, olderRun]);
-
-    const res = await GET();
-    const data = await res.json();
-
-    expect(data.totalValue).toBe(1200); // uses price 120 from latest run, not 90
-  });
-
   it("skips positions with no lots", async () => {
-    const emptyPos = { id: "pos-empty", strategyId: "strat-1", symbol: "TQQQ", positionLots: [] };
-
+    const emptyPos = {
+      id: "pos-empty",
+      strategyId: "strat-1",
+      symbol: "TQQQ",
+      positionLots: [],
+    };
     mockPositionsFindMany.mockResolvedValueOnce([emptyPos]);
-    mockRunsFindMany.mockResolvedValueOnce([runWithPrices]);
+    mockSelect.mockReturnValueOnce(makeSnapshotChain(null));
 
     const res = await GET();
     const data = await res.json();
 
     expect(data.totalCost).toBe(0);
     expect(data.totalPositions).toBe(1);
+  });
+
+  it("does not query monitoringRuns anymore", async () => {
+    mockPositionsFindMany.mockResolvedValueOnce([posQQQ]);
+    mockSelect.mockReturnValueOnce(makeSnapshotChain("120"));
+
+    await GET();
+    // mockSelect should be called once (for QQQ snapshot lookup)
+    expect(mockSelect).toHaveBeenCalledTimes(1);
   });
 });
