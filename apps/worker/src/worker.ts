@@ -3,6 +3,8 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "@trader/db";
 import { runMonitoringJob } from "./monitoring/job.js";
+import { runPriceRefreshJob } from "./monitoring/price-refresh-job.js";
+import { ensurePriceSnapshots } from "./monitoring/price-snapshots.js";
 import { runNewsJob } from "./news/job.js";
 
 export function createWorker(databaseUrl: string) {
@@ -19,6 +21,24 @@ export function createWorker(databaseUrl: string) {
     boss,
     async start() {
       await boss.start();
+
+      await boss.createQueue("daily-price-refresh");
+      await boss.work("daily-price-refresh", async () => {
+        console.log("[worker] daily-price-refresh job triggered");
+        await runPriceRefreshJob(db);
+      });
+      await boss.schedule("daily-price-refresh", "0 1 * * *");
+      console.log("[worker] daily-price-refresh cron registered (0 1 * * * UTC)");
+
+      await boss.createQueue("manual-backfill");
+      await boss.work<{ symbol: string; fromDate: string }>(
+        "manual-backfill",
+        async (jobs) => {
+          const { symbol, fromDate } = jobs[0].data;
+          console.log(`[worker] manual-backfill triggered: ${symbol} from ${fromDate}`);
+          await ensurePriceSnapshots(db, symbol, fromDate);
+        }
+      );
 
       await boss.createQueue("daily-monitoring");
       await boss.work<{ strategyId?: string }>("daily-monitoring", async (jobs) => {
