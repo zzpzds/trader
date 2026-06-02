@@ -1,56 +1,40 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { mockPositionsFindMany, mockRunsFindMany } = vi.hoisted(() => ({
+const { mockPositionsFindMany, mockSelect } = vi.hoisted(() => ({
   mockPositionsFindMany: vi.fn(),
-  mockRunsFindMany: vi.fn(),
+  mockSelect: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({
   db: {
-    query: {
-      positions: { findMany: mockPositionsFindMany },
-      monitoringRuns: { findMany: mockRunsFindMany },
-    },
+    query: { positions: { findMany: mockPositionsFindMany } },
+    select: mockSelect,
   },
 }));
 
-vi.mock("drizzle-orm", () => ({
-  and: (...args: unknown[]) => ({ _type: "and", args }),
-  eq: (col: unknown, val: unknown) => ({ _type: "eq", col, val }),
-  gte: (col: unknown, val: unknown) => ({ _type: "gte", col, val }),
-}));
-
-vi.mock("@trader/db", () => ({
-  monitoringRuns: { status: "status", runDate: "runDate" },
-  positions: {},
-}));
-
 import { GET } from "../route";
+
+function makeSelectChain(rows: any[]) {
+  return {
+    from: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
+    orderBy: vi.fn().mockResolvedValue(rows),
+  };
+}
 
 const posQQQ = {
   id: "pos-1",
   strategyId: "strat-1",
   symbol: "QQQ",
-  positionLots: [{ shares: 10, costPrice: "100.0000" }],
+  positionLots: [{ shares: "10", costPrice: "100.0000" }],
 };
 
-const run1 = {
-  id: "run-1",
-  strategyId: "strat-1",
-  runDate: "2026-05-01",
-  status: "completed",
-  prices: { QQQ: 110 },
-  createdAt: new Date("2026-05-01T10:00:00Z"),
-};
-
-const run2 = {
-  id: "run-2",
-  strategyId: "strat-1",
-  runDate: "2026-05-02",
-  status: "completed",
-  prices: { QQQ: 120 },
-  createdAt: new Date("2026-05-02T10:00:00Z"),
+const posManualAAPL = {
+  id: "pos-2",
+  strategyId: null,
+  symbol: "AAPL",
+  positionLots: [{ shares: "5", costPrice: "150.0000" }],
 };
 
 function makeRequest(range = "1m") {
@@ -58,91 +42,63 @@ function makeRequest(range = "1m") {
 }
 
 describe("GET /api/positions/history", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    mockPositionsFindMany.mockReset();
+    mockSelect.mockReset();
+  });
 
-  it("returns empty array when no positions", async () => {
+  it("returns empty when no positions", async () => {
     mockPositionsFindMany.mockResolvedValueOnce([]);
-    mockRunsFindMany.mockResolvedValueOnce([]);
-
     const res = await GET(makeRequest());
     expect(await res.json()).toEqual([]);
   });
 
-  it("calculates percentPnl for each date", async () => {
+  it("calculates percentPnl for each date from price_snapshots", async () => {
     mockPositionsFindMany.mockResolvedValueOnce([posQQQ]);
-    mockRunsFindMany.mockResolvedValueOnce([run1, run2]);
+    mockSelect.mockReturnValueOnce(
+      makeSelectChain([
+        { symbol: "QQQ", date: "2026-05-01", close: "110" },
+        { symbol: "QQQ", date: "2026-05-02", close: "120" },
+      ])
+    );
 
     const res = await GET(makeRequest());
     const data = await res.json();
-
     expect(data).toEqual([
-      { date: "2026-05-01", percentPnl: 10 },   // (110-100)/100 * 100
-      { date: "2026-05-02", percentPnl: 20 },   // (120-100)/100 * 100
+      { date: "2026-05-01", percentPnl: 10 },
+      { date: "2026-05-02", percentPnl: 20 },
     ]);
   });
 
-  it("skips dates where no symbol has a price", async () => {
-    const runNoPrices = {
-      ...run1,
-      runDate: "2026-05-01",
-      prices: { SPY: 500 }, // symbol not in positions
-    };
+  it("includes manual positions in the curve", async () => {
+    mockPositionsFindMany.mockResolvedValueOnce([posQQQ, posManualAAPL]);
+    mockSelect.mockReturnValueOnce(
+      makeSelectChain([
+        { symbol: "QQQ", date: "2026-05-01", close: "110" },
+        { symbol: "AAPL", date: "2026-05-01", close: "165" },
+      ])
+    );
 
+    const res = await GET(makeRequest());
+    const data = await res.json();
+    // QQQ: cost 1000, value 1100. AAPL: cost 750, value 825.
+    // total value=1925, total cost=1750, pnl = (1925-1750)/1750 * 100 = 10
+    expect(data).toEqual([{ date: "2026-05-01", percentPnl: 10 }]);
+  });
+
+  it("skips dates where no covered symbol has a price", async () => {
     mockPositionsFindMany.mockResolvedValueOnce([posQQQ]);
-    mockRunsFindMany.mockResolvedValueOnce([runNoPrices]);
-
+    mockSelect.mockReturnValueOnce(makeSelectChain([])); // no snapshots
     const res = await GET(makeRequest());
     expect(await res.json()).toEqual([]);
   });
 
-  it("uses the latest run when multiple runs exist for the same date", async () => {
-    const olderRun = {
-      ...run1,
-      id: "run-old",
-      prices: { QQQ: 50 }, // stale price
-      createdAt: new Date("2026-05-01T08:00:00Z"),
-    };
-    const newerRun = {
-      ...run1,
-      id: "run-new",
-      prices: { QQQ: 110 },
-      createdAt: new Date("2026-05-01T10:00:00Z"),
-    };
-
+  it("does not query monitoringRuns anymore", async () => {
     mockPositionsFindMany.mockResolvedValueOnce([posQQQ]);
-    // Route orders by runDate ASC, createdAt ASC — newer comes last
-    mockRunsFindMany.mockResolvedValueOnce([olderRun, newerRun]);
+    mockSelect.mockReturnValueOnce(makeSelectChain([]));
 
-    const res = await GET(makeRequest());
-    const data = await res.json();
-
-    expect(data).toEqual([{ date: "2026-05-01", percentPnl: 10 }]); // uses 110, not 50
-  });
-
-  it("aggregates across multiple strategies on the same date", async () => {
-    const posSPY = {
-      id: "pos-2",
-      strategyId: "strat-2",
-      symbol: "SPY",
-      positionLots: [{ shares: 2, costPrice: "500.0000" }],
-    };
-    const runSPY = {
-      id: "run-spy",
-      strategyId: "strat-2",
-      runDate: "2026-05-01",
-      status: "completed",
-      prices: { SPY: 550 },
-      createdAt: new Date("2026-05-01T10:00:00Z"),
-    };
-
-    mockPositionsFindMany.mockResolvedValueOnce([posQQQ, posSPY]);
-    mockRunsFindMany.mockResolvedValueOnce([run1, runSPY]);
-
-    const res = await GET(makeRequest());
-    const data = await res.json();
-
-    // QQQ: 10*110=1100, cost 1000. SPY: 2*550=1100, cost 1000.
-    // total value=2200, total cost=2000, pnl=10%
-    expect(data).toEqual([{ date: "2026-05-01", percentPnl: 10 }]);
+    await GET(makeRequest());
+    // mockSelect should be the only DB call after positions findMany
+    expect(mockSelect).toHaveBeenCalledTimes(1);
   });
 });
