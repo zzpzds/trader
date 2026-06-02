@@ -1,5 +1,12 @@
-import { eq, and } from "drizzle-orm";
-import { strategies, positions, positionLots, monitoringRuns, notifications } from "@trader/db";
+import { eq, and, asc, gte, inArray } from "drizzle-orm";
+import {
+  strategies,
+  positions,
+  positionLots,
+  monitoringRuns,
+  notifications,
+  priceSnapshots,
+} from "@trader/db";
 import { fetchPrices, type FetchResult } from "./alphavantage-fetch.js";
 import { createAnalyzer, type PositionInfo } from "./analyze.js";
 import type { drizzle } from "drizzle-orm/postgres-js";
@@ -11,6 +18,7 @@ type DbType = ReturnType<typeof drizzle<typeof schema>>;
 const CONCURRENCY_LIMIT = 3;
 const ANALYZE_MAX_ATTEMPTS = 3;
 const ANALYZE_RETRY_BASE_MS = 10_000;
+const DEFAULT_ANALYSIS_WINDOW_DAYS = 60;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -44,19 +52,8 @@ export async function runMonitoringJob(db: DbType, strategyId?: string) {
     return;
   }
 
-  const allSymbols = [
-    ...new Set(strategiesWithLots.flatMap((s) => s.positions.map((p) => p.symbol))),
-  ];
-
-  let allPrices: FetchResult = {};
-  try {
-    allPrices = await fetchPrices(allSymbols, "60d");
-  } catch (err) {
-    console.error("[monitoring] Failed to fetch prices:", err instanceof Error ? err.message : String(err));
-  }
-
   const tasks = strategiesWithLots.map((strategy) =>
-    limit(() => processStrategy(db, strategy, analyze, allPrices))
+    limit(() => processStrategy(db, strategy, analyze))
   );
 
   await Promise.allSettled(tasks);
@@ -67,12 +64,13 @@ interface StrategyWithLots {
   name: string;
   content: string;
   symbols: string[];
+  analysisWindowDays: number;
   positions: Array<{
     id: string;
     symbol: string;
     referencePrice: string | null;
     positionLots: Array<{
-      shares: number;
+      shares: string;
       costPrice: string;
       lotDate: string;
       notes: string | null;
@@ -100,6 +98,7 @@ async function findStrategiesWithLots(db: DbType, strategyId?: string): Promise<
         name: strategy.name,
         content: strategy.content,
         symbols: (strategy.symbols as string[]) ?? [],
+        analysisWindowDays: strategy.analysisWindowDays ?? DEFAULT_ANALYSIS_WINDOW_DAYS,
         positions: posWithLots.map((p) => ({
           id: p.id,
           symbol: p.symbol,
@@ -118,11 +117,52 @@ async function findStrategiesWithLots(db: DbType, strategyId?: string): Promise<
   return result;
 }
 
-async function processStrategy(
+async function readSnapshotsForStrategy(
+  db: any,
+  symbols: string[],
+  windowDays: number
+): Promise<FetchResult> {
+  const since = new Date(Date.now() - windowDays * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+
+  const rows = await db
+    .select({
+      symbol: priceSnapshots.symbol,
+      date: priceSnapshots.date,
+      open: priceSnapshots.open,
+      high: priceSnapshots.high,
+      low: priceSnapshots.low,
+      close: priceSnapshots.close,
+      volume: priceSnapshots.volume,
+    })
+    .from(priceSnapshots)
+    .where(and(inArray(priceSnapshots.symbol, symbols), gte(priceSnapshots.date, since)))
+    .orderBy(asc(priceSnapshots.date));
+
+  const grouped: FetchResult = {};
+  for (const r of rows as any[]) {
+    if (!grouped[r.symbol]) grouped[r.symbol] = { latest: 0, bars: [] };
+    grouped[r.symbol].bars.push({
+      date: r.date,
+      open: parseFloat(r.open),
+      high: parseFloat(r.high),
+      low: parseFloat(r.low),
+      close: parseFloat(r.close),
+      volume: r.volume != null ? Number(r.volume) : 0,
+    });
+  }
+  for (const sym of Object.keys(grouped)) {
+    const bars = grouped[sym].bars;
+    grouped[sym].latest = bars.length > 0 ? bars[bars.length - 1].close : 0;
+  }
+  return grouped;
+}
+
+export async function processStrategy(
   db: DbType,
   strategy: StrategyWithLots,
-  analyze: ReturnType<typeof createAnalyzer>,
-  prefetchedPrices: FetchResult
+  analyze: ReturnType<typeof createAnalyzer>
 ) {
   const today = new Date().toISOString().slice(0, 10);
 
@@ -137,26 +177,40 @@ async function processStrategy(
 
   try {
     const symbols = strategy.positions.map((p) => p.symbol);
-    const prices: FetchResult = {};
-    const missing: string[] = [];
-    for (const symbol of symbols) {
-      if (prefetchedPrices[symbol]) {
-        prices[symbol] = prefetchedPrices[symbol];
-      } else {
-        missing.push(symbol);
+    let prices = await readSnapshotsForStrategy(db, symbols, strategy.analysisWindowDays);
+
+    // Transitional fallback: if price_snapshots has no data for any symbol
+    // of this strategy, fetch inline. Removed in a later cleanup once
+    // daily-price-refresh has been live for 1-2 weeks.
+    const haveAnyData = Object.keys(prices).length > 0;
+    if (!haveAnyData) {
+      console.warn(
+        `[monitoring] Strategy ${strategy.name}: price_snapshots empty for ${symbols.join(", ")}, falling back to inline fetchPrices`
+      );
+      try {
+        prices = await fetchPrices(symbols, `${strategy.analysisWindowDays}d`);
+      } catch (err) {
+        console.error(
+          `[monitoring] Strategy ${strategy.name}: inline fetchPrices fallback failed:`,
+          err instanceof Error ? err.message : String(err)
+        );
       }
     }
-    if (Object.keys(prices).length === 0) {
-      throw new Error(`All symbols failed: ${missing.join(", ")}`);
+
+    const missing = symbols.filter((s) => !prices[s] || prices[s].bars.length === 0);
+    if (missing.length === symbols.length) {
+      throw new Error(`No price data for any symbol: ${missing.join(", ")}`);
     }
     if (missing.length > 0) {
-      console.warn(`[monitoring] Strategy ${strategy.name}: missing prices for ${missing.join(", ")}`);
+      console.warn(
+        `[monitoring] Strategy ${strategy.name}: missing snapshots for ${missing.join(", ")}`
+      );
     }
 
     const positionInfos: PositionInfo[] = strategy.positions.map((p) => {
-      const totalShares = p.positionLots.reduce((s, l) => s + l.shares, 0);
+      const totalShares = p.positionLots.reduce((s, l) => s + parseFloat(l.shares), 0);
       const totalCost = p.positionLots.reduce(
-        (s, l) => s + l.shares * parseFloat(l.costPrice),
+        (s, l) => s + parseFloat(l.shares) * parseFloat(l.costPrice),
         0
       );
       const avgCost = totalShares > 0 ? totalCost / totalShares : 0;
@@ -167,18 +221,13 @@ async function processStrategy(
         avgCost,
         referencePrice: p.referencePrice !== null ? parseFloat(p.referencePrice) : null,
         lots: p.positionLots.map((l) => ({
-          shares: l.shares,
+          shares: parseFloat(l.shares),
           costPrice: parseFloat(l.costPrice),
           lotDate: l.lotDate,
           notes: l.notes ?? undefined,
         })),
       };
     });
-
-    const priceSnapshots: Record<string, number> = {};
-    for (const [symbol, data] of Object.entries(prices)) {
-      priceSnapshots[symbol] = data.latest;
-    }
 
     const analysis = await withRetry(
       () => analyze(strategy.name, strategy.content, positionInfos, prices),
@@ -193,7 +242,6 @@ async function processStrategy(
         status: "completed",
         analysis: analysis.analysis,
         hasActionItems: analysis.hasActionItems,
-        prices: priceSnapshots,
       })
       .where(eq(monitoringRuns.id, run.id));
 
