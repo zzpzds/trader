@@ -1,6 +1,10 @@
 // @vitest-environment node
 import { describe, it, expect, vi } from "vitest";
-import { upsertSnapshots } from "../price-snapshots.js";
+
+vi.mock("../alphavantage-fetch.js", () => ({ fetchPrices: vi.fn() }));
+
+import { upsertSnapshots, ensurePriceSnapshots } from "../price-snapshots.js";
+import { fetchPrices } from "../alphavantage-fetch.js";
 
 describe("upsertSnapshots", () => {
   it("calls insert + onConflictDoUpdate per (symbol, date)", async () => {
@@ -56,5 +60,58 @@ describe("upsertSnapshots", () => {
     expect(values).toHaveBeenCalledWith(
       expect.objectContaining({ symbol: "QQQ", volume: null })
     );
+  });
+});
+
+describe("ensurePriceSnapshots", () => {
+  it("does nothing when existing data already covers fromDate", async () => {
+    const where = vi.fn().mockResolvedValue([{ minDate: "2026-04-01" }]);
+    const from = vi.fn().mockReturnValue({ where });
+    const select = vi.fn().mockReturnValue({ from });
+    const db: any = { select };
+
+    (fetchPrices as any).mockClear();
+    await ensurePriceSnapshots(db, "AAPL", "2026-05-01");
+    expect(fetchPrices).not.toHaveBeenCalled();
+  });
+
+  it("fetches and upserts when fromDate precedes existing min", async () => {
+    const where = vi.fn().mockResolvedValue([{ minDate: "2026-05-01" }]);
+    const from = vi.fn().mockReturnValue({ where });
+    const select = vi.fn().mockReturnValue({ from });
+    const onConflictDoUpdate = vi.fn().mockResolvedValue(undefined);
+    const values = vi.fn(() => ({ onConflictDoUpdate }));
+    const insert = vi.fn(() => ({ values }));
+    const db: any = { select, insert };
+
+    (fetchPrices as any).mockClear();
+    (fetchPrices as any).mockResolvedValueOnce({
+      AAPL: {
+        latest: 100,
+        bars: [{ date: "2026-04-15", open: 1, high: 1, low: 1, close: 1, volume: 1 }],
+      },
+    });
+
+    await ensurePriceSnapshots(db, "AAPL", "2026-04-15");
+    expect(fetchPrices).toHaveBeenCalledTimes(1);
+    expect(insert).toHaveBeenCalled();
+  });
+
+  it("fetches when no existing data", async () => {
+    const where = vi.fn().mockResolvedValue([{ minDate: null }]);
+    const from = vi.fn().mockReturnValue({ where });
+    const select = vi.fn().mockReturnValue({ from });
+    const onConflictDoUpdate = vi.fn().mockResolvedValue(undefined);
+    const values = vi.fn(() => ({ onConflictDoUpdate }));
+    const insert = vi.fn(() => ({ values }));
+    const db: any = { select, insert };
+
+    (fetchPrices as any).mockClear();
+    (fetchPrices as any).mockResolvedValueOnce({
+      AAPL: { latest: 100, bars: [] },
+    });
+
+    await ensurePriceSnapshots(db, "AAPL", "2026-04-15");
+    expect(fetchPrices).toHaveBeenCalledTimes(1);
   });
 });

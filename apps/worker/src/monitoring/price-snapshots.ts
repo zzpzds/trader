@@ -1,4 +1,6 @@
+import { eq, min } from "drizzle-orm";
 import { priceSnapshots } from "@trader/db";
+import { fetchPrices } from "./alphavantage-fetch.js";
 import type { FetchResult } from "./alphavantage-fetch.js";
 
 export async function upsertSnapshots(db: any, result: FetchResult): Promise<void> {
@@ -29,4 +31,22 @@ export async function upsertSnapshots(db: any, result: FetchResult): Promise<voi
         });
     }
   }
+}
+
+export async function ensurePriceSnapshots(
+  db: any,
+  symbol: string,
+  fromDate: string
+): Promise<void> {
+  const existing = await db
+    .select({ minDate: min(priceSnapshots.date) })
+    .from(priceSnapshots)
+    .where(eq(priceSnapshots.symbol, symbol));
+  const existingMin = existing[0]?.minDate ?? null;
+  if (existingMin && existingMin <= fromDate) return;
+
+  const daysBack =
+    Math.ceil((Date.now() - new Date(fromDate).getTime()) / 86_400_000) + 1;
+  const result = await fetchPrices([symbol], `${daysBack}d`);
+  await upsertSnapshots(db, result);
 }
