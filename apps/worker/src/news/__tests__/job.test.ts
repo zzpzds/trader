@@ -120,6 +120,29 @@ describe("runNewsJob", () => {
     expect(conflictArg.set).toBeTruthy();
   });
 
+  it("serializes LLM summarize calls across strategies (no concurrent LLM in flight)", async () => {
+    let inFlight = 0;
+    let maxInFlight = 0;
+    mockSummarize.mockImplementation(async () => {
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((r) => setTimeout(r, 10));
+      inFlight--;
+      return "ok";
+    });
+
+    const { db } = makeDbMock([
+      { id: "s1", name: "S1", content: "x", symbols: ["A"] },
+      { id: "s2", name: "S2", content: "x", symbols: ["B"] },
+      { id: "s3", name: "S3", content: "x", symbols: ["C"] },
+    ]);
+
+    await runNewsJob(db);
+
+    expect(mockSummarize).toHaveBeenCalledTimes(3);
+    expect(maxInFlight).toBe(1);
+  });
+
   it("continues other strategies when one strategy's Tavily call rejects", async () => {
     mockTavilyFetch.mockReset();
     mockTavilyFetch

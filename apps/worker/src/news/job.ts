@@ -11,6 +11,11 @@ type DbType = ReturnType<typeof drizzle<typeof schema>>;
 const CONCURRENCY_LIMIT = 3;
 const RETENTION_DAYS = 7;
 
+// Serialize all LLM calls across strategies. The upstream Anthropic gateway
+// rate-limits aggressively per-minute, and bursting 3 concurrent summarize
+// requests reliably trips 429. Tavily fetches stay parallel.
+const llmLimit = pLimit(1);
+
 function todayUtc(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -74,7 +79,7 @@ async function processStrategy(
       }
     }
 
-    const content = await summarizeNews(strategy.name, strategy.content, articles);
+    const content = await llmLimit(() => summarizeNews(strategy.name, strategy.content, articles));
 
     await db
       .insert(newsSummaries)
