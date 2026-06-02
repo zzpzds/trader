@@ -143,4 +143,26 @@ describe("fetchPrices", () => {
     await expect(promise).rejects.toThrow("All symbols failed");
     vi.useRealTimers();
   });
+
+  it("uses outputsize=compact for periods <= 100 days", async () => {
+    mockFetch.mockReturnValueOnce(
+      okResponse(makeTimeSeriesResponse({
+        "2026-05-10": { open: 1, high: 1, low: 1, close: 1, volume: 1 },
+      }))
+    );
+    await fetchPrices(["AAPL"], "60d");
+    const url = String(mockFetch.mock.calls[0][0]);
+    expect(url).toContain("outputsize=compact");
+  });
+
+  it("uses outputsize=full for periods > 100 days", async () => {
+    mockFetch.mockReturnValueOnce(
+      okResponse(makeTimeSeriesResponse({
+        "2026-05-10": { open: 1, high: 1, low: 1, close: 1, volume: 1 },
+      }))
+    );
+    await fetchPrices(["AAPL"], "120d");
+    const url = String(mockFetch.mock.calls[0][0]);
+    expect(url).toContain("outputsize=full");
+  });
 });
