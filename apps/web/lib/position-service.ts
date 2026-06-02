@@ -1,9 +1,9 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { positions, positionLots } from "@trader/db";
 
 export async function upsertPositionAndCreateLot(
-  strategyId: string,
+  strategyId: string | null,
   symbol: string,
   shares: number,
   costPrice: string,
@@ -11,7 +11,10 @@ export async function upsertPositionAndCreateLot(
   notes?: string
 ) {
   const existing = await db.query.positions.findFirst({
-    where: and(eq(positions.strategyId, strategyId), eq(positions.symbol, symbol)),
+    where:
+      strategyId === null
+        ? and(isNull(positions.strategyId), eq(positions.symbol, symbol))
+        : and(eq(positions.strategyId, strategyId), eq(positions.symbol, symbol)),
   });
 
   let positionId: string;

@@ -1,9 +1,11 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { findMany, snapshotSelect } = vi.hoisted(() => ({
+const { findMany, snapshotSelect, mockUpsert, mockSend } = vi.hoisted(() => ({
   findMany: vi.fn(),
   snapshotSelect: vi.fn(),
+  mockUpsert: vi.fn(),
+  mockSend: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -13,7 +15,12 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-import { GET } from "../route";
+vi.mock("@/lib/position-service", () => ({ upsertPositionAndCreateLot: mockUpsert }));
+vi.mock("@/lib/queue", () => ({
+  getBoss: async () => ({ send: mockSend }),
+}));
+
+import { GET, POST } from "../route";
 
 function req() {
   return new Request("http://localhost/api/positions/manual");
@@ -83,5 +90,71 @@ describe("GET /api/positions/manual", () => {
     const res = await GET(req());
     const data = await res.json();
     expect(data).toEqual([]);
+  });
+});
+
+function postReq(body: any) {
+  return new Request("http://localhost/api/positions/manual", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+describe("POST /api/positions/manual", () => {
+  beforeEach(() => {
+    mockUpsert.mockReset();
+    mockSend.mockReset();
+  });
+
+  it("creates manual position with null strategyId, inserts lot, enqueues backfill", async () => {
+    mockUpsert.mockResolvedValueOnce({ positionId: "p1", lot: { id: "l1" } });
+    mockSend.mockResolvedValueOnce(undefined);
+
+    const res = await POST(
+      postReq({ symbol: "aapl", shares: 5, costPrice: "170.50", lotDate: "2026-06-01" })
+    );
+
+    expect(res.status).toBe(201);
+    const data = await res.json();
+    expect(data).toEqual({ positionId: "p1", lotId: "l1" });
+    expect(mockUpsert).toHaveBeenCalledWith(null, "AAPL", 5, "170.50", "2026-06-01", undefined);
+    expect(mockSend).toHaveBeenCalledWith("manual-backfill", {
+      symbol: "AAPL",
+      fromDate: "2026-06-01",
+    });
+  });
+
+  it("returns 400 when lotDate is in the future", async () => {
+    const future = new Date(Date.now() + 86_400_000 * 2).toISOString().slice(0, 10);
+    const res = await POST(
+      postReq({ symbol: "AAPL", shares: 1, costPrice: "1", lotDate: future })
+    );
+    expect(res.status).toBe(400);
+    expect(mockUpsert).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when shares <= 0", async () => {
+    const res = await POST(
+      postReq({ symbol: "AAPL", shares: 0, costPrice: "1", lotDate: "2026-05-01" })
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when costPrice <= 0", async () => {
+    const res = await POST(
+      postReq({ symbol: "AAPL", shares: 1, costPrice: "0", lotDate: "2026-05-01" })
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("still returns 201 even if boss.send fails (logs error, does not throw)", async () => {
+    mockUpsert.mockResolvedValueOnce({ positionId: "p2", lot: { id: "l2" } });
+    mockSend.mockRejectedValueOnce(new Error("queue down"));
+
+    const res = await POST(
+      postReq({ symbol: "TSLA", shares: 1, costPrice: "200", lotDate: "2026-05-01" })
+    );
+    expect(res.status).toBe(201);
   });
 });
