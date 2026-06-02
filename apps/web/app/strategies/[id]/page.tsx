@@ -20,6 +20,7 @@ interface Strategy {
   symbols: string[];
   content: string;
   script: string;
+  analysisWindowDays: number;
 }
 
 interface Position {
@@ -388,6 +389,29 @@ export default function StrategyDetailPage() {
       <div className="flex-1 overflow-y-auto min-h-0">
       {tab === "description" && (
         <div>
+          <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-muted-foreground">分析窗口</label>
+              <Input
+                type="number"
+                min={1}
+                step={1}
+                className="w-24 h-8"
+                value={strategy.analysisWindowDays}
+                onChange={async (e) => {
+                  const v = parseInt(e.target.value, 10);
+                  if (!Number.isFinite(v) || v < 1) return;
+                  setStrategy((prev) => (prev ? { ...prev, analysisWindowDays: v } : prev));
+                  await fetch(`/api/strategies/${id}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ analysisWindowDays: v }),
+                  });
+                }}
+              />
+              <span className="text-xs text-muted-foreground">天 (LLM 分析)</span>
+            </div>
+          </div>
           <div className="flex justify-end mb-2">
             {editingDescription ? (
               <div className="flex gap-2">
