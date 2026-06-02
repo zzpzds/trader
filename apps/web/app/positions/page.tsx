@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PieChart, Pie, Cell, Tooltip } from "recharts";
@@ -36,6 +36,14 @@ interface SummaryData {
 }
 
 export default function PositionsPage() {
+  return (
+    <Suspense fallback={<div className="p-4 md:p-6 max-w-none md:max-w-4xl mx-auto"><h1 className="text-2xl font-bold mb-4">持仓管理</h1></div>}>
+      <PositionsPageInner />
+    </Suspense>
+  );
+}
+
+function PositionsPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tab = searchParams.get("tab") === "manual" ? "manual" : "strategies";
