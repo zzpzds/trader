@@ -12,6 +12,7 @@ import type { ParsedStrategy } from "@/lib/parse-strategy";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { PnlChart } from "@/components/pnl-chart";
+import { LotForm } from "@/components/lot-form";
 
 interface Strategy {
   id: string;
@@ -63,11 +64,6 @@ export default function StrategyDetailPage() {
   const [positions, setPositions] = useState<Position[]>([]);
   const [runs, setRuns] = useState<MonitoringRun[]>([]);
   const [showAddLot, setShowAddLot] = useState(false);
-  const [lotSymbol, setLotSymbol] = useState("");
-  const [lotShares, setLotShares] = useState("");
-  const [lotPrice, setLotPrice] = useState("");
-  const [lotDate, setLotDate] = useState(new Date().toISOString().slice(0, 10));
-  const [lotNotes, setLotNotes] = useState("");
   const [triggerStatus, setTriggerStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [editingName, setEditingName] = useState(false);
@@ -120,24 +116,19 @@ export default function StrategyDetailPage() {
     };
   }, []);
 
-  async function handleAddLot() {
-    if (!lotSymbol || !lotShares || !lotPrice || !lotDate) return;
+  async function handleAddLot(values: { symbol: string; shares: string; costPrice: string; lotDate: string; notes: string }) {
     await fetch(`/api/strategies/${id}/lots`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        symbol: lotSymbol.toUpperCase(),
-        shares: parseFloat(lotShares),
-        costPrice: lotPrice,
-        lotDate,
-        notes: lotNotes || undefined,
+        symbol: values.symbol.toUpperCase(),
+        shares: parseFloat(values.shares),
+        costPrice: values.costPrice,
+        lotDate: values.lotDate,
+        notes: values.notes || undefined,
       }),
     });
     setShowAddLot(false);
-    setLotSymbol("");
-    setLotShares("");
-    setLotPrice("");
-    setLotNotes("");
     fetchPositions();
   }
 
@@ -588,36 +579,7 @@ export default function StrategyDetailPage() {
     </div>
 
     {showAddLot && (
-      <Card>
-        <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-muted-foreground">股票代码</label>
-              <Input value={lotSymbol} onChange={(e) => setLotSymbol(e.target.value)} placeholder="QQQ" />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">股数</label>
-              <Input type="number" step="0.0001" value={lotShares} onChange={(e) => setLotShares(e.target.value)} />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">成本价</label>
-              <Input type="number" step="0.01" value={lotPrice} onChange={(e) => setLotPrice(e.target.value)} />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">建仓日期</label>
-              <Input type="date" value={lotDate} onChange={(e) => setLotDate(e.target.value)} />
-            </div>
-            <div className="col-span-1 md:col-span-2">
-              <label className="text-xs text-muted-foreground">备注</label>
-              <Input value={lotNotes} onChange={(e) => setLotNotes(e.target.value)} />
-            </div>
-          </div>
-          <div className="flex gap-2 mt-3">
-            <Button size="sm" onClick={handleAddLot}>保存</Button>
-            <Button size="sm" variant="outline" onClick={() => setShowAddLot(false)}>取消</Button>
-          </div>
-        </CardContent>
-      </Card>
+      <LotForm onSubmit={handleAddLot} onCancel={() => setShowAddLot(false)} />
     )}
 
     {positions.map((pos) => {
