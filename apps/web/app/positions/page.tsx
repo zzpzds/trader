@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PnlChart } from "@/components/pnl-chart";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ManualPositionsTab } from "@/components/manual-positions-tab";
 
 const PIE_COLORS = ["#6366f1", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#3b82f6", "#ec4899", "#14b8a6"];
 
@@ -269,7 +270,7 @@ export default function PositionsPage() {
         </TabsContent>
 
         <TabsContent value="manual">
-          <p className="text-muted-foreground text-center py-10">即将到来</p>
+          <ManualPositionsTab />
         </TabsContent>
       </Tabs>
     </div>
