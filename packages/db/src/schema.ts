@@ -7,6 +7,7 @@ import {
   boolean,
   integer,
   uniqueIndex,
+  unique,
   index,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
@@ -30,15 +31,19 @@ export const positions = pgTable(
     id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    strategyId: text("strategy_id")
-      .notNull()
-      .references(() => strategies.id, { onDelete: "cascade" }),
+    strategyId: text("strategy_id").references(() => strategies.id, {
+      onDelete: "set null",
+    }),
     symbol: text("symbol").notNull(),
     referencePrice: numeric("reference_price", { precision: 15, scale: 4 }),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("positions_strategy_id_symbol_idx").on(t.strategyId, t.symbol)]
+  (t) => [
+    unique("positions_strategy_id_symbol_idx")
+      .on(t.strategyId, t.symbol)
+      .nullsNotDistinct(),
+  ]
 );
 
 export const positionLots = pgTable("position_lots", {
