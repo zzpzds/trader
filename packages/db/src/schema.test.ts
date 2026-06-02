@@ -21,6 +21,14 @@ describe("schema exports", () => {
     expect(columns).not.toContain("config");
   });
 
+  it("strategies includes analysisWindowDays with default 60", () => {
+    expect(Object.keys(strategies)).toContain("analysisWindowDays");
+    const col = (strategies as any).analysisWindowDays;
+    expect(col.notNull).toBe(true);
+    expect(col.hasDefault).toBe(true);
+    expect(col.default).toBe(60);
+  });
+
   it("positions table has required columns", () => {
     const columns = Object.keys(positions);
     expect(columns).toContain("id");

@@ -5,6 +5,7 @@ import {
   jsonb,
   numeric,
   boolean,
+  integer,
   uniqueIndex,
   index,
 } from "drizzle-orm/pg-core";
@@ -18,6 +19,7 @@ export const strategies = pgTable("strategies", {
   symbols: jsonb("symbols").notNull().$type<string[]>(),
   content: text("content").notNull(),
   script: text("script").notNull(),
+  analysisWindowDays: integer("analysis_window_days").notNull().default(60),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
