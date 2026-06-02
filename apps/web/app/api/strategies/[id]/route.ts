@@ -21,18 +21,33 @@ export async function PUT(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const { name, symbols, content, script } = body as {
+  const { name, symbols, content, script, analysisWindowDays } = body as {
     name?: string;
     symbols?: string[];
     content?: string;
     script?: string;
+    analysisWindowDays?: number;
   };
+
+  if (analysisWindowDays !== undefined) {
+    if (
+      typeof analysisWindowDays !== "number" ||
+      !Number.isInteger(analysisWindowDays) ||
+      analysisWindowDays < 1
+    ) {
+      return Response.json(
+        { error: "analysisWindowDays must be a positive integer" },
+        { status: 400 }
+      );
+    }
+  }
 
   const updates: Record<string, unknown> = { updatedAt: new Date() };
   if (name !== undefined) updates.name = name;
   if (symbols !== undefined) updates.symbols = symbols;
   if (content !== undefined) updates.content = content;
   if (script !== undefined) updates.script = script;
+  if (analysisWindowDays !== undefined) updates.analysisWindowDays = analysisWindowDays;
 
   const [row] = await db
     .update(strategies)
