@@ -19,10 +19,11 @@ interface StrategyPositions {
     id: string;
     symbol: string;
     latestPrice: number | null;
-    positionLots: Array<{
-      shares: string;
-      costPrice: string;
-    }>;
+    totalShares: string;
+    avgCost: string;
+    totalPnl: number | null;
+    totalPnlPercent: number | null;
+    isClosed: boolean;
   }>;
 }
 
@@ -109,12 +110,8 @@ function PositionsPageInner() {
   const strategyValues = data
     .map(({ strategyName, positions }) => {
       const value = positions.reduce((sum, pos) => {
-        const shares = pos.positionLots.reduce((s, l) => s + parseFloat(l.shares), 0);
-        const price = pos.latestPrice ?? (
-          shares > 0
-            ? pos.positionLots.reduce((s, l) => s + parseFloat(l.shares) * parseFloat(l.costPrice), 0) / shares
-            : 0
-        );
+        const shares = parseFloat(pos.totalShares);
+        const price = pos.latestPrice ?? parseFloat(pos.avgCost);
         return sum + shares * price;
       }, 0);
       return { name: strategyName, value: Math.round(value * 100) / 100 };
@@ -232,41 +229,37 @@ function PositionsPageInner() {
           </h2>
           <div className="space-y-2">
             {positions.map((pos) => {
-              const totalShares = pos.positionLots.reduce((s, l) => s + parseFloat(l.shares), 0);
-              const totalCost = pos.positionLots.reduce(
-                (s, l) => s + parseFloat(l.shares) * parseFloat(l.costPrice),
-                0
-              );
-              const avgCost = totalShares > 0 ? totalCost / totalShares : 0;
-              const pnl =
-                pos.latestPrice
-                  ? ((pos.latestPrice - avgCost) / avgCost * 100).toFixed(2)
-                  : null;
+              const totalShares = parseFloat(pos.totalShares);
+              const avgCost = parseFloat(pos.avgCost);
+              const pct = pos.totalPnlPercent;
+              const gain = pct != null && pct >= 0;
 
               return (
                 <Card key={pos.id}>
                   <CardContent className="p-3 flex items-center justify-between flex-wrap gap-1">
                     <div className="flex items-center gap-3">
                       <Badge variant="outline">{pos.symbol}</Badge>
-                      <span className="text-sm">{totalShares} 股</span>
-                      <span className="text-sm text-muted-foreground">
-                        均价 ${avgCost.toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {pos.latestPrice ? (
+                      {pos.isClosed ? (
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">已清仓</span>
+                      ) : (
                         <>
-                          <span className="text-sm">${pos.latestPrice}</span>
-                          <span
-                            className={`text-sm font-medium ${
-                              pnl && parseFloat(pnl) >= 0
-                                ? "text-red-600"
-                                : "text-green-600"
-                            }`}
-                          >
-                            {pnl}%
+                          <span className="text-sm">{totalShares} 股</span>
+                          <span className="text-sm text-muted-foreground">
+                            均价 ${avgCost.toFixed(2)}
                           </span>
                         </>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {!pos.isClosed && pos.latestPrice != null && (
+                        <span className="text-sm">${pos.latestPrice}</span>
+                      )}
+                      {pct != null ? (
+                        <span
+                          className={`text-sm font-medium ${gain ? "text-red-600" : "text-green-600"}`}
+                        >
+                          {gain ? "+" : ""}{pct.toFixed(2)}%
+                        </span>
                       ) : (
                         <span className="text-sm text-muted-foreground">--</span>
                       )}
