@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { eq, desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { priceSnapshots } from "@trader/db";
+import { replayPosition, type Txn, type TxnType } from "@/lib/pnl";
 
 export async function GET() {
   const allPositions = await db.query.positions.findMany({
@@ -26,26 +27,35 @@ export async function GET() {
   let totalCost = 0;
   let coveredCost = 0;
   let totalValue = 0;
+  let realizedPnl = 0;
   let coveredPositions = 0;
   const totalPositions = allPositions.length;
 
   for (const pos of allPositions as any[]) {
     if (pos.positionLots.length === 0) continue;
 
-    const shares = pos.positionLots.reduce(
-      (s: number, l: any) => s + parseFloat(l.shares),
-      0
-    );
-    const cost = pos.positionLots.reduce(
-      (s: number, l: any) => s + parseFloat(l.shares) * parseFloat(l.costPrice),
-      0
-    );
+    const txns: Txn[] = pos.positionLots.map((l: any) => ({
+      id: l.id,
+      type: (l.type as TxnType) ?? "BUY",
+      shares: parseFloat(l.shares),
+      price: parseFloat(l.costPrice),
+      date: l.lotDate,
+      createdAt: l.createdAt,
+    }));
+    const state = replayPosition(txns);
+
+    realizedPnl += state.realizedPnl;
+
+    // Cost / value / 收益 reflect only currently-held shares (sells netted out).
+    if (state.heldShares <= 0) continue;
+
+    const cost = state.costBasis;
     totalCost += cost;
 
     const price = priceBySymbol[pos.symbol];
     if (price !== undefined) {
       coveredCost += cost;
-      totalValue += shares * price;
+      totalValue += state.heldShares * price;
       coveredPositions++;
     }
   }
@@ -58,6 +68,7 @@ export async function GET() {
     totalValue: Math.round(totalValue * 100) / 100,
     absolutePnl: Math.round(absolutePnl * 100) / 100,
     percentPnl: Math.round(percentPnl * 10000) / 10000,
+    realizedPnl: Math.round(realizedPnl * 100) / 100,
     coveredPositions,
     totalPositions,
   });

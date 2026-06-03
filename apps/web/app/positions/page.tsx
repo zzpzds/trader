@@ -32,6 +32,7 @@ interface SummaryData {
   totalValue: number;
   absolutePnl: number;
   percentPnl: number;
+  realizedPnl: number;
   coveredPositions: number;
   totalPositions: number;
 }
@@ -59,6 +60,7 @@ function PositionsPageInner() {
   }
 
   const [data, setData] = useState<StrategyPositions[]>([]);
+  const [manualValue, setManualValue] = useState(0);
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [summaryError, setSummaryError] = useState(false);
@@ -101,8 +103,25 @@ function PositionsPageInner() {
       setData(results);
     }
 
+    async function fetchManual() {
+      try {
+        const res = await fetch("/api/positions/manual");
+        if (!res.ok) return;
+        const positions = await res.json();
+        const value = positions.reduce((sum: number, p: any) => {
+          const shares = parseFloat(p.totalShares);
+          const price = p.latestPrice ?? parseFloat(p.avgCost);
+          return sum + shares * price;
+        }, 0);
+        setManualValue(Math.round(value * 100) / 100);
+      } catch {
+        // leave manualValue at 0 on failure
+      }
+    }
+
     fetchSummary();
     fetchAll();
+    fetchManual();
   }, []);
 
   const usdFormat: Intl.NumberFormatOptions = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
@@ -117,7 +136,11 @@ function PositionsPageInner() {
       return { name: strategyName, value: Math.round(value * 100) / 100 };
     })
     .filter((s) => s.value > 0);
-  const totalStrategyValue = strategyValues.reduce((s, v) => s + v.value, 0);
+  const pieValues = [
+    ...strategyValues,
+    ...(manualValue > 0 ? [{ name: "手动持仓", value: manualValue }] : []),
+  ];
+  const totalPieValue = pieValues.reduce((s, v) => s + v.value, 0);
 
   return (
     <div className="p-4 md:p-6 max-w-none md:max-w-4xl mx-auto">
@@ -154,6 +177,14 @@ function PositionsPageInner() {
                     <span className="text-sm font-medium">
                       {summary.percentPnl >= 0 ? "+" : ""}{summary.percentPnl.toFixed(2)}%
                     </span>
+                    {summary.realizedPnl !== 0 && (
+                      <span className="text-xs font-normal text-muted-foreground ml-2">
+                        已实现{" "}
+                        <span className={summary.realizedPnl >= 0 ? "text-red-600" : "text-green-600"}>
+                          {summary.realizedPnl >= 0 ? "+" : ""}${summary.realizedPnl.toLocaleString("en-US", usdFormat)}
+                        </span>
+                      </span>
+                    )}
                   </p>
                 </div>
                 {summary.coveredPositions < summary.totalPositions && (
@@ -163,11 +194,11 @@ function PositionsPageInner() {
                 )}
               </div>
 
-              {strategyValues.length > 0 && (
+              {pieValues.length > 0 && (
                 <div className="flex items-center gap-3 shrink-0">
                   <PieChart width={80} height={80}>
                     <Pie
-                      data={strategyValues}
+                      data={pieValues}
                       cx={35}
                       cy={35}
                       innerRadius={22}
@@ -175,19 +206,19 @@ function PositionsPageInner() {
                       dataKey="value"
                       strokeWidth={1}
                     >
-                      {strategyValues.map((_, i) => (
+                      {pieValues.map((_, i) => (
                         <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip
                       formatter={(value: number, _: string, entry: { payload?: { name?: string } }) => [
-                        `${((value / totalStrategyValue) * 100).toFixed(1)}%`,
+                        `${((value / totalPieValue) * 100).toFixed(1)}%`,
                         entry.payload?.name ?? "",
                       ]}
                     />
                   </PieChart>
                   <div className="space-y-1">
-                    {strategyValues.map((s, i) => (
+                    {pieValues.map((s, i) => (
                       <div key={s.name} className="flex items-center gap-1.5">
                         <span
                           className="w-2 h-2 rounded-full shrink-0"
@@ -195,7 +226,7 @@ function PositionsPageInner() {
                         />
                         <span className="text-xs text-muted-foreground truncate max-w-[100px]">{s.name}</span>
                         <span className="text-xs font-medium ml-auto pl-2">
-                          {((s.value / totalStrategyValue) * 100).toFixed(1)}%
+                          {((s.value / totalPieValue) * 100).toFixed(1)}%
                         </span>
                       </div>
                     ))}

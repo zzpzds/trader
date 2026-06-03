@@ -55,6 +55,7 @@ describe("GET /api/positions/summary", () => {
       totalValue: 0,
       absolutePnl: 0,
       percentPnl: 0,
+      realizedPnl: 0,
       coveredPositions: 0,
       totalPositions: 0,
     });
@@ -106,6 +107,30 @@ describe("GET /api/positions/summary", () => {
 
     expect(data.totalCost).toBe(0);
     expect(data.totalPositions).toBe(1);
+  });
+
+  it("nets out sells: cost/value/收益 use held shares only, realized shown separately", async () => {
+    const posWithSell = {
+      id: "pos-sell",
+      strategyId: null,
+      symbol: "UNH",
+      positionLots: [
+        { id: "l1", type: "BUY", shares: "10", costPrice: "100.0000", lotDate: "2026-01-01", createdAt: new Date("2026-01-01") },
+        { id: "l2", type: "SELL", shares: "4", costPrice: "130.0000", lotDate: "2026-02-01", createdAt: new Date("2026-02-01") },
+      ],
+    };
+    mockPositionsFindMany.mockResolvedValueOnce([posWithSell]);
+    mockSelect.mockReturnValueOnce(makeSnapshotChain("150"));
+
+    const res = await GET();
+    const data = await res.json();
+
+    // held 6 @ avg 100; sold 4 @ 130 → realized (130-100)*4 = 120
+    expect(data.totalCost).toBe(600);     // 6 * 100 held cost (not 10*100 + 4*130)
+    expect(data.totalValue).toBe(900);    // 6 * 150
+    expect(data.absolutePnl).toBe(300);   // unrealized only: 900 - 600
+    expect(data.realizedPnl).toBe(120);
+    expect(data.coveredPositions).toBe(1);
   });
 
   it("does not query monitoringRuns anymore", async () => {
