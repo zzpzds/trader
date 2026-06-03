@@ -717,8 +717,8 @@ export default function StrategyDetailPage() {
 
           <div className="divide-y">
             {pos.transactions.map((t) => (
-              <div key={t.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0 hover:bg-muted/40 transition-colors">
-                <div className="flex items-center gap-3 text-sm">
+              <div key={t.id} className="flex items-start justify-between gap-2 py-2 first:pt-0 last:pb-0 hover:bg-muted/40 transition-colors">
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                   <span className={t.type === "SELL" ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
                     {t.type === "SELL" ? "卖出" : "买入"}
                   </span>
@@ -728,7 +728,7 @@ export default function StrategyDetailPage() {
                   {t.notes && <span className="text-muted-foreground text-xs">{t.notes}</span>}
                 </div>
                 <button
-                  className="text-muted-foreground hover:text-destructive transition-colors p-1 rounded"
+                  className="shrink-0 text-muted-foreground hover:text-destructive transition-colors p-1 rounded"
                   onClick={() => handleDeleteLot(t.id)}
                 >
                   <Trash2 size={13} />

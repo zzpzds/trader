@@ -240,15 +240,15 @@ export function ManualPositionsTab() {
               {p.transactions.length > 0 && (
                 <div className="mt-2 space-y-1 text-xs">
                   {p.transactions.map((t) => (
-                    <div key={t.id} className="flex justify-between text-muted-foreground">
-                      <span>
+                    <div key={t.id} className="flex items-start justify-between gap-2 text-muted-foreground">
+                      <span className="min-w-0 flex-1">
                         <span className={t.type === "SELL" ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
                           {t.type === "SELL" ? "卖出" : "买入"}
                         </span>{" "}
                         {t.lotDate} · {parseFloat(t.shares)} 股 · ${parseFloat(t.costPrice).toFixed(2)}
                         {t.notes ? ` · ${t.notes}` : ""}
                       </span>
-                      <button onClick={() => handleDeleteLot(t.id)} className="hover:text-destructive">
+                      <button onClick={() => handleDeleteLot(t.id)} className="shrink-0 whitespace-nowrap hover:text-destructive">
                         删除
                       </button>
                     </div>
