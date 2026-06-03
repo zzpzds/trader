@@ -1,4 +1,4 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: P&L rate history chart on positions overview page
 持仓管理总览页 SHALL 在汇总卡片下方展示账户级历史收益率折线图,数据源为 `price_snapshots`,**包含**手动持仓贡献。
@@ -33,23 +33,6 @@
 
 ---
 
-### Requirement: P&L rate history chart on strategy detail page
-策略详情页「持仓」Tab SHALL 在持仓列表上方展示该策略的历史收益率折线图。
-
-#### Scenario: Chart renders for single strategy
-- **WHEN** 用户访问策略详情页并切换到持仓 Tab，且该策略存在历史监控运行数据
-- **THEN** 系统在持仓列表上方展示该策略的收益率折线图
-
-#### Scenario: Strategy chart shares the same interaction model
-- **WHEN** 用户操作策略详情页的收益率图表
-- **THEN** 图表支持与持仓管理总览页完全相同的时间范围切换、Tooltip 和颜色逻辑
-
-#### Scenario: No history data for strategy
-- **WHEN** 该策略尚无 completed 的 monitoring_run
-- **THEN** 图表显示「暂无数据」提示，不影响持仓列表的展示
-
----
-
 ### Requirement: P&L history API — portfolio
 系统 SHALL 提供 `GET /api/positions/history` 端点,基于 `price_snapshots` 返回账户级每日收益率序列。
 
@@ -68,16 +51,3 @@
 #### Scenario: Manual positions contribute to portfolio curve
 - **WHEN** 存在手动持仓且其 symbol 在 `price_snapshots` 中有历史数据
 - **THEN** 该手动持仓的 cost 与 value 计入账户级曲线的每个日期点
-
----
-
-### Requirement: P&L history API — single strategy
-系统 SHALL 提供 `GET /api/strategies/[id]/history` 端点，返回指定策略的历史每日收益率序列。
-
-#### Scenario: Returns strategy-specific daily percentPnl series
-- **WHEN** 调用 `GET /api/strategies/abc/history?range=1m`
-- **THEN** 系统返回该策略过去 30 天内每个有 completed monitoring_run 的日期的 `{ date, percentPnl }` 数组
-
-#### Scenario: Skips dates with zero coverage for strategy
-- **WHEN** 某日期该策略所有持仓均无价格覆盖
-- **THEN** 该日期不出现在响应数组中
