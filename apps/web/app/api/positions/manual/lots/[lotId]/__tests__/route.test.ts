@@ -54,6 +54,25 @@ describe("DELETE /api/positions/manual/lots/:lotId", () => {
     expect(res.status).toBe(404);
   });
 
+  it("returns 409 when deleting a buy would make holdings negative", async () => {
+    h.findFirst.mockResolvedValueOnce({
+      id: "buy1",
+      positionId: "p1",
+      type: "BUY",
+      position: {
+        strategyId: null,
+        positionLots: [
+          { id: "buy1", type: "BUY", shares: "100", costPrice: "10", lotDate: "2026-01-01", createdAt: new Date("2026-01-01") },
+          { id: "sell1", type: "SELL", shares: "80", costPrice: "15", lotDate: "2026-01-02", createdAt: new Date("2026-01-02") },
+        ],
+      },
+    });
+    const { request, ctx } = mkReq("buy1");
+    const res = await DELETE(request, ctx);
+    expect(res.status).toBe(409);
+    expect(h.deleteWhere).not.toHaveBeenCalled();
+  });
+
   it("deletes lot only when other lots remain", async () => {
     h.findFirst.mockResolvedValueOnce({
       id: "l1",
