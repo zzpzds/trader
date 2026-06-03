@@ -41,14 +41,15 @@ describe("GET /api/positions/manual", () => {
     snapshotSelect.mockReset();
   });
 
-  it("returns NULL-strategy positions with latest price from price_snapshots", async () => {
+  it("returns positions with computed pnl and transactions timeline", async () => {
     findMany.mockResolvedValueOnce([
       {
         id: "p1",
         symbol: "AAPL",
         strategyId: null,
         positionLots: [
-          { id: "l1", shares: "10.0000", costPrice: "150.0000", lotDate: "2026-05-01", notes: null },
+          { id: "l1", type: "BUY", shares: "10.0000", costPrice: "100.0000", lotDate: "2026-05-01", notes: null, createdAt: new Date("2026-05-01") },
+          { id: "l2", type: "SELL", shares: "4.0000", costPrice: "150.0000", lotDate: "2026-05-10", notes: null, createdAt: new Date("2026-05-10") },
         ],
       },
     ]);
@@ -57,13 +58,13 @@ describe("GET /api/positions/manual", () => {
     const res = await GET(req());
     const data = await res.json();
 
-    expect(data).toHaveLength(1);
-    expect(data[0]).toMatchObject({
-      id: "p1",
-      symbol: "AAPL",
-      latestPrice: 175,
-    });
-    expect(data[0].lots).toHaveLength(1);
+    expect(data[0]).toMatchObject({ id: "p1", symbol: "AAPL", latestPrice: 175, isClosed: false });
+    // realized = (150-100)*4 = 200; held = 6; cost = 600; unrealized = 175*6-600 = 450; total = 650
+    expect(data[0].realizedPnl).toBeCloseTo(200, 6);
+    expect(data[0].unrealizedPnl).toBeCloseTo(450, 6);
+    expect(data[0].totalPnl).toBeCloseTo(650, 6);
+    expect(data[0].transactions).toHaveLength(2);
+    expect(data[0].transactions[0]).toMatchObject({ type: "BUY" });
   });
 
   it("returns latestPrice null when no snapshot exists", async () => {
