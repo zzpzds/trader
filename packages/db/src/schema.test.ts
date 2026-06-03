@@ -94,6 +94,15 @@ describe("schema exports", () => {
     expect(mod).not.toHaveProperty("priceCache");
   });
 
+  it("positionLots has type column defaulting to BUY", () => {
+    const columns = Object.keys(positionLots);
+    expect(columns).toContain("type");
+    const col = (positionLots as any).type;
+    expect(col.notNull).toBe(true);
+    expect(col.hasDefault).toBe(true);
+    expect(col.default).toBe("BUY");
+  });
+
   it("positionLots.shares is numeric(15,4) (supports decimals)", () => {
     const col = positionLots.shares as unknown as { columnType: string; precision: number; scale: number };
     expect(col.columnType).toBe("PgNumeric");

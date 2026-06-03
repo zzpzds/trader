@@ -56,6 +56,8 @@ export const positionLots = pgTable("position_lots", {
   positionId: text("position_id")
     .notNull()
     .references(() => positions.id, { onDelete: "cascade" }),
+  // BUY 行 costPrice=买入价;SELL 行 costPrice=卖出价
+  type: text("type", { enum: ["BUY", "SELL"] }).notNull().default("BUY"),
   shares: numeric("shares", { precision: 15, scale: 4 }).notNull(),
   costPrice: numeric("cost_price", { precision: 15, scale: 4 }).notNull(),
   lotDate: text("lot_date").notNull(),
