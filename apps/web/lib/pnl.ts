@@ -105,3 +105,65 @@ export function canDeleteBuy(txns: Txn[], lotId: string): boolean {
   }
   return true;
 }
+
+export interface DatedTxn extends Txn {
+  symbol: string;
+}
+
+export interface Snapshot {
+  symbol: string;
+  date: string;
+  close: number;
+}
+
+export function buildPnlHistory(
+  txns: DatedTxn[],
+  snapshots: Snapshot[]
+): Array<{ date: string; percentPnl: number }> {
+  const bySymbol = new Map<string, DatedTxn[]>();
+  for (const t of txns) {
+    if (!bySymbol.has(t.symbol)) bySymbol.set(t.symbol, []);
+    bySymbol.get(t.symbol)!.push(t);
+  }
+
+  const priceByDate = new Map<string, Map<string, number>>();
+  for (const s of snapshots) {
+    if (!priceByDate.has(s.date)) priceByDate.set(s.date, new Map());
+    priceByDate.get(s.date)!.set(s.symbol, s.close);
+  }
+
+  const dates = [...priceByDate.keys()].sort();
+  const carry = new Map<string, number>();
+  const result: Array<{ date: string; percentPnl: number }> = [];
+
+  for (const date of dates) {
+    const todays = priceByDate.get(date);
+    if (todays) for (const [sym, px] of todays) carry.set(sym, px);
+
+    let marketValue = 0;
+    let remainingCost = 0;
+    let realizedCum = 0;
+    let grossInvested = 0;
+
+    for (const [sym, list] of bySymbol) {
+      const price = carry.get(sym);
+      if (price === undefined) continue;
+      const upTo = list.filter((t) => t.date <= date);
+      if (upTo.length === 0) continue;
+      const st = replayPosition(upTo);
+      marketValue += st.heldShares * price;
+      remainingCost += st.costBasis;
+      realizedCum += st.realizedPnl;
+      grossInvested += st.grossInvested;
+    }
+
+    if (grossInvested <= EPS) continue;
+    const totalPnl = marketValue - remainingCost + realizedCum;
+    result.push({
+      date,
+      percentPnl: Math.round((totalPnl / grossInvested) * 10000) / 100,
+    });
+  }
+
+  return result;
+}

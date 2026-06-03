@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from "vitest";
-import { replayPosition, computeTotalPnl, canDeleteBuy, type Txn } from "../pnl";
+import { replayPosition, computeTotalPnl, canDeleteBuy, buildPnlHistory, type Txn, type DatedTxn, type Snapshot } from "../pnl";
 
 function buy(id: string, shares: number, price: number, date: string): Txn {
   return { id, type: "BUY", shares, price, date };
@@ -97,5 +97,40 @@ describe("canDeleteBuy", () => {
   it("allows deleting a buy when holdings stay non-negative", () => {
     const ok: Txn[] = [buy("a", 100, 10, "2026-01-01"), buy("b", 100, 10, "2026-01-02"), sell("c", 50, 15, "2026-01-03")];
     expect(canDeleteBuy(ok, "a")).toBe(true);
+  });
+});
+
+describe("buildPnlHistory", () => {
+  it("includes realized gains after a sell and carries prices forward", () => {
+    const txns: DatedTxn[] = [
+      { id: "b", symbol: "AAA", type: "BUY", shares: 100, price: 10, date: "2026-01-01" },
+      { id: "s", symbol: "AAA", type: "SELL", shares: 100, price: 15, date: "2026-01-03" },
+    ];
+    const snaps: Snapshot[] = [
+      { symbol: "AAA", date: "2026-01-01", close: 10 },
+      { symbol: "AAA", date: "2026-01-02", close: 12 },
+      { symbol: "AAA", date: "2026-01-03", close: 15 },
+    ];
+    const out = buildPnlHistory(txns, snaps);
+    // d1: held 100 @10, price 10 -> 0%
+    // d2: held 100 @10, price 12 -> (1200-1000)/1000 = 20%
+    // d3: sold all, realized=(15-10)*100=500, held 0 -> total=500 / gross 1000 = 50%
+    expect(out).toEqual([
+      { date: "2026-01-01", percentPnl: 0 },
+      { date: "2026-01-02", percentPnl: 20 },
+      { date: "2026-01-03", percentPnl: 50 },
+    ]);
+  });
+
+  it("skips symbols with no price yet and days with zero gross", () => {
+    const txns: DatedTxn[] = [
+      { id: "b", symbol: "BBB", type: "BUY", shares: 10, price: 100, date: "2026-02-02" },
+    ];
+    const snaps: Snapshot[] = [
+      { symbol: "BBB", date: "2026-02-01", close: 90 }, // before any buy: gross 0 -> skipped
+      { symbol: "BBB", date: "2026-02-02", close: 110 },
+    ];
+    const out = buildPnlHistory(txns, snaps);
+    expect(out).toEqual([{ date: "2026-02-02", percentPnl: 10 }]);
   });
 });
