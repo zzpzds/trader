@@ -47,6 +47,11 @@ function periodToDays(period: string): number {
 
 const RATE_LIMIT_DELAY_MS = 12_000;
 
+export function isRateLimitError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /rate limit/i.test(message);
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

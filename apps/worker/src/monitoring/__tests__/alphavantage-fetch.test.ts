@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
 
-import { fetchPrices } from "../alphavantage-fetch.js";
+import { fetchPrices, isRateLimitError } from "../alphavantage-fetch.js";
 
 function makeTimeSeriesResponse(entries: Record<string, {
   open: number; high: number; low: number; close: number; volume: number;
@@ -164,5 +164,20 @@ describe("fetchPrices", () => {
     await fetchPrices(["AAPL"], "120d");
     const url = String(mockFetch.mock.calls[0][0]);
     expect(url).toContain("outputsize=full");
+  });
+});
+
+describe("isRateLimitError", () => {
+  it("returns true for per-symbol and aggregated rate limit errors", () => {
+    expect(isRateLimitError(new Error("Alpha Vantage rate limit reached"))).toBe(true);
+    expect(
+      isRateLimitError(new Error("All symbols failed: OCRL: Alpha Vantage rate limit reached"))
+    ).toBe(true);
+  });
+
+  it("returns false for other errors", () => {
+    expect(isRateLimitError(new Error("Invalid API call."))).toBe(false);
+    expect(isRateLimitError(new Error("No data returned for OCRL"))).toBe(false);
+    expect(isRateLimitError("some string")).toBe(false);
   });
 });

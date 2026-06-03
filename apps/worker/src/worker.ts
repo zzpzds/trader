@@ -5,6 +5,7 @@ import * as schema from "@trader/db";
 import { runMonitoringJob } from "./monitoring/job.js";
 import { runPriceRefreshJob } from "./monitoring/price-refresh-job.js";
 import { ensurePriceSnapshots } from "./monitoring/price-snapshots.js";
+import { isRateLimitError } from "./monitoring/alphavantage-fetch.js";
 import { runNewsJob } from "./news/job.js";
 
 export function createWorker(databaseUrl: string) {
@@ -36,7 +37,17 @@ export function createWorker(databaseUrl: string) {
         async (jobs) => {
           const { symbol, fromDate } = jobs[0].data;
           console.log(`[worker] manual-backfill triggered: ${symbol} from ${fromDate}`);
-          await ensurePriceSnapshots(db, symbol, fromDate);
+          try {
+            await ensurePriceSnapshots(db, symbol, fromDate);
+          } catch (err) {
+            // Daily quota won't reset within pg-boss's retry window, so retrying
+            // only burns more requests. Complete the job; the daily cron backfills.
+            if (isRateLimitError(err)) {
+              console.warn(`[worker] manual-backfill ${symbol}: rate limited, skipping retry`);
+              return;
+            }
+            throw err;
+          }
         }
       );
 
