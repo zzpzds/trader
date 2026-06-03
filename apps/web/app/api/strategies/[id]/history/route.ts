@@ -1,7 +1,8 @@
 export const dynamic = "force-dynamic";
-import { and, eq, gte } from "drizzle-orm";
+import { and, asc, eq, gte, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { monitoringRuns, positions } from "@trader/db";
+import { positions, priceSnapshots } from "@trader/db";
+import { buildPnlHistory, type DatedTxn, type TxnType, type Snapshot } from "@/lib/pnl";
 
 function getCutoff(range: string): string | null {
   if (range === "all") return null;
@@ -16,59 +17,50 @@ export async function GET(
 ) {
   const { id: strategyId } = await params;
   const { searchParams } = new URL(request.url);
-  const range = searchParams.get("range") ?? "1m";
-  const cutoff = getCutoff(range);
+  const cutoff = getCutoff(searchParams.get("range") ?? "1m");
 
   const strategyPositions = await db.query.positions.findMany({
     where: eq(positions.strategyId, strategyId),
     with: { positionLots: true },
   });
 
-  // symbol → { shares, cost }
-  const costBasis = new Map<string, { shares: number; cost: number }>();
-  for (const pos of strategyPositions) {
-    if (pos.positionLots.length === 0) continue;
-    const shares = pos.positionLots.reduce((s, l) => s + parseFloat(l.shares), 0);
-    const cost = pos.positionLots.reduce((s, l) => s + parseFloat(l.shares) * parseFloat(l.costPrice), 0);
-    costBasis.set(pos.symbol, { shares, cost });
-  }
-
-  const conditions = [
-    eq(monitoringRuns.strategyId, strategyId),
-    eq(monitoringRuns.status, "completed"),
-  ];
-  if (cutoff) conditions.push(gte(monitoringRuns.runDate, cutoff));
-
-  const runs = await db.query.monitoringRuns.findMany({
-    where: and(...conditions),
-    orderBy: (r, { asc }) => [asc(r.runDate), asc(r.createdAt)],
-  });
-
-  // runDate → prices  (last write wins = latest createdAt)
-  const latestByDate = new Map<string, Record<string, number>>();
-  for (const run of runs) {
-    if (run.prices) latestByDate.set(run.runDate, run.prices as Record<string, number>);
-  }
-
-  const result: Array<{ date: string; percentPnl: number }> = [];
-  for (const date of [...latestByDate.keys()].sort()) {
-    const prices = latestByDate.get(date)!;
-    let coveredValue = 0;
-    let coveredCost = 0;
-
-    for (const [symbol, { shares, cost }] of costBasis) {
-      const price = prices[symbol];
-      if (price === undefined) continue;
-      coveredValue += shares * price;
-      coveredCost += cost;
+  const txns: DatedTxn[] = [];
+  for (const pos of strategyPositions as any[]) {
+    for (const l of pos.positionLots) {
+      txns.push({
+        id: l.id,
+        symbol: pos.symbol,
+        type: (l.type as TxnType) ?? "BUY",
+        shares: parseFloat(l.shares),
+        price: parseFloat(l.costPrice),
+        date: l.lotDate,
+        createdAt: l.createdAt,
+      });
     }
-
-    if (coveredCost === 0) continue;
-    result.push({
-      date,
-      percentPnl: Math.round(((coveredValue - coveredCost) / coveredCost) * 10000) / 100,
-    });
   }
 
-  return Response.json(result);
+  const symbols = [...new Set(txns.map((t) => t.symbol))];
+  if (symbols.length === 0) return Response.json([]);
+
+  const where = cutoff
+    ? and(inArray(priceSnapshots.symbol, symbols), gte(priceSnapshots.date, cutoff))
+    : inArray(priceSnapshots.symbol, symbols);
+
+  const rows = await db
+    .select({
+      symbol: priceSnapshots.symbol,
+      date: priceSnapshots.date,
+      close: priceSnapshots.close,
+    })
+    .from(priceSnapshots)
+    .where(where)
+    .orderBy(asc(priceSnapshots.date));
+
+  const snapshots: Snapshot[] = (rows as any[]).map((r) => ({
+    symbol: r.symbol,
+    date: r.date,
+    close: parseFloat(r.close),
+  }));
+
+  return Response.json(buildPnlHistory(txns, snapshots));
 }

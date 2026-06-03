@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { and, asc, gte, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { priceSnapshots } from "@trader/db";
+import { buildPnlHistory, type DatedTxn, type TxnType, type Snapshot } from "@/lib/pnl";
 
 function getCutoff(range: string): string | null {
   if (range === "all") return null;
@@ -18,25 +19,22 @@ export async function GET(request: Request) {
     with: { positionLots: true },
   });
 
-  // Aggregate by symbol across all positions (strategy + manual)
-  const bySymbol = new Map<string, { shares: number; cost: number }>();
+  const txns: DatedTxn[] = [];
   for (const pos of allPositions as any[]) {
-    if (pos.positionLots.length === 0) continue;
-    const shares = pos.positionLots.reduce(
-      (s: number, l: any) => s + parseFloat(l.shares),
-      0
-    );
-    const cost = pos.positionLots.reduce(
-      (s: number, l: any) => s + parseFloat(l.shares) * parseFloat(l.costPrice),
-      0
-    );
-    const cur = bySymbol.get(pos.symbol) ?? { shares: 0, cost: 0 };
-    cur.shares += shares;
-    cur.cost += cost;
-    bySymbol.set(pos.symbol, cur);
+    for (const l of pos.positionLots) {
+      txns.push({
+        id: l.id,
+        symbol: pos.symbol,
+        type: (l.type as TxnType) ?? "BUY",
+        shares: parseFloat(l.shares),
+        price: parseFloat(l.costPrice),
+        date: l.lotDate,
+        createdAt: l.createdAt,
+      });
+    }
   }
 
-  const symbols = [...bySymbol.keys()];
+  const symbols = [...new Set(txns.map((t) => t.symbol))];
   if (symbols.length === 0) return Response.json([]);
 
   const where = cutoff
@@ -53,30 +51,11 @@ export async function GET(request: Request) {
     .where(where)
     .orderBy(asc(priceSnapshots.date));
 
-  // date → symbol → close
-  const byDate = new Map<string, Map<string, number>>();
-  for (const r of rows as any[]) {
-    if (!byDate.has(r.date)) byDate.set(r.date, new Map());
-    byDate.get(r.date)!.set(r.symbol, parseFloat(r.close));
-  }
+  const snapshots: Snapshot[] = (rows as any[]).map((r) => ({
+    symbol: r.symbol,
+    date: r.date,
+    close: parseFloat(r.close),
+  }));
 
-  const result: Array<{ date: string; percentPnl: number }> = [];
-  for (const date of [...byDate.keys()].sort()) {
-    const prices = byDate.get(date)!;
-    let value = 0;
-    let cost = 0;
-    for (const [symbol, agg] of bySymbol) {
-      const px = prices.get(symbol);
-      if (px === undefined) continue;
-      value += agg.shares * px;
-      cost += agg.cost;
-    }
-    if (cost === 0) continue;
-    result.push({
-      date,
-      percentPnl: Math.round(((value - cost) / cost) * 10000) / 100,
-    });
-  }
-
-  return Response.json(result);
+  return Response.json(buildPnlHistory(txns, snapshots));
 }

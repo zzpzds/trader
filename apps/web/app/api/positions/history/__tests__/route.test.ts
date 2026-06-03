@@ -27,14 +27,14 @@ const posQQQ = {
   id: "pos-1",
   strategyId: "strat-1",
   symbol: "QQQ",
-  positionLots: [{ shares: "10", costPrice: "100.0000" }],
+  positionLots: [{ id: "lq", type: "BUY", shares: "10", costPrice: "100.0000", lotDate: "2026-01-01", createdAt: new Date("2026-01-01") }],
 };
 
 const posManualAAPL = {
   id: "pos-2",
   strategyId: null,
   symbol: "AAPL",
-  positionLots: [{ shares: "5", costPrice: "150.0000" }],
+  positionLots: [{ id: "la", type: "BUY", shares: "5", costPrice: "150.0000", lotDate: "2026-01-01", createdAt: new Date("2026-01-01") }],
 };
 
 function makeRequest(range = "1m") {
@@ -91,6 +91,33 @@ describe("GET /api/positions/history", () => {
     mockSelect.mockReturnValueOnce(makeSelectChain([])); // no snapshots
     const res = await GET(makeRequest());
     expect(await res.json()).toEqual([]);
+  });
+
+  it("reflects realized pnl after a sell across days", async () => {
+    mockPositionsFindMany.mockResolvedValueOnce([
+      {
+        symbol: "AAA",
+        positionLots: [
+          { id: "b", type: "BUY", shares: "100", costPrice: "10", lotDate: "2026-01-01", createdAt: new Date("2026-01-01") },
+          { id: "s", type: "SELL", shares: "100", costPrice: "15", lotDate: "2026-01-03", createdAt: new Date("2026-01-03") },
+        ],
+      },
+    ]);
+    mockSelect.mockReturnValueOnce(
+      makeSelectChain([
+        { symbol: "AAA", date: "2026-01-01", close: "10" },
+        { symbol: "AAA", date: "2026-01-02", close: "12" },
+        { symbol: "AAA", date: "2026-01-03", close: "15" },
+      ])
+    );
+
+    const res = await GET(new Request("http://localhost/api/positions/history?range=all"));
+    const data = await res.json();
+    expect(data).toEqual([
+      { date: "2026-01-01", percentPnl: 0 },
+      { date: "2026-01-02", percentPnl: 20 },
+      { date: "2026-01-03", percentPnl: 50 },
+    ]);
   });
 
   it("does not query monitoringRuns anymore", async () => {
