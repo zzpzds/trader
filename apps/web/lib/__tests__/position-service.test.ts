@@ -14,7 +14,7 @@ vi.mock("@/lib/db", () => ({
 }));
 
 import { db } from "@/lib/db";
-import { upsertPositionAndCreateLot, deleteLotAndCheckPosition } from "../position-service";
+import { upsertPositionAndCreateLot, deleteLotAndCheckPosition, recordSell } from "../position-service";
 
 function mockReturning(rows: any[]) {
   return { returning: vi.fn().mockResolvedValueOnce(rows) };
@@ -160,5 +160,65 @@ describe("deleteLotAndCheckPosition", () => {
 
     const result = await deleteLotAndCheckPosition("lot-1");
     expect(result).toEqual(lot);
+  });
+});
+
+describe("recordSell", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns 404 when no position exists", async () => {
+    (db.query.positions.findFirst as any).mockResolvedValueOnce(undefined);
+    const r = await recordSell(null, "AAPL", 10, "150", "2026-05-01");
+    expect(r.status).toBe(404);
+    expect(r.error).toBeTruthy();
+  });
+
+  it("rejects selling more than held", async () => {
+    (db.query.positions.findFirst as any).mockResolvedValueOnce({
+      id: "p1",
+      strategyId: null,
+      symbol: "AAPL",
+      positionLots: [
+        { id: "l1", type: "BUY", shares: "10", costPrice: "100", lotDate: "2026-05-01", createdAt: new Date() },
+      ],
+    });
+    const r = await recordSell(null, "AAPL", 20, "150", "2026-05-02");
+    expect(r.status).toBe(400);
+  });
+
+  it("rejects sellDate before first buy", async () => {
+    (db.query.positions.findFirst as any).mockResolvedValueOnce({
+      id: "p1",
+      strategyId: null,
+      symbol: "AAPL",
+      positionLots: [
+        { id: "l1", type: "BUY", shares: "10", costPrice: "100", lotDate: "2026-05-10", createdAt: new Date() },
+      ],
+    });
+    const r = await recordSell(null, "AAPL", 5, "150", "2026-05-01");
+    expect(r.status).toBe(400);
+  });
+
+  it("inserts a SELL lot when valid", async () => {
+    (db.query.positions.findFirst as any).mockResolvedValueOnce({
+      id: "p1",
+      strategyId: null,
+      symbol: "AAPL",
+      positionLots: [
+        { id: "l1", type: "BUY", shares: "10", costPrice: "100", lotDate: "2026-05-01", createdAt: new Date() },
+      ],
+    });
+    const lotInsert = mockValues(mockReturning([{ id: "sell-1" }]));
+    (db.insert as any).mockReturnValue(lotInsert);
+
+    const r = await recordSell(null, "AAPL", 5, "150", "2026-05-02", "trim");
+    expect(r.status).toBe(201);
+    expect(r.positionId).toBe("p1");
+    expect(r.lot.id).toBe("sell-1");
+    expect(lotInsert.values).toHaveBeenCalledWith(
+      expect.objectContaining({ positionId: "p1", type: "SELL", costPrice: "150", lotDate: "2026-05-02" })
+    );
   });
 });
