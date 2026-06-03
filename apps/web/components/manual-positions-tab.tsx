@@ -5,9 +5,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Trash2, Plus } from "lucide-react";
 import { LotForm, type LotFormValues } from "@/components/lot-form";
+import { SellForm, type SellFormValues } from "@/components/sell-form";
 
-interface ManualLot {
+interface Transaction {
   id: string;
+  type: "BUY" | "SELL";
   shares: string;
   costPrice: string;
   lotDate: string;
@@ -20,7 +22,12 @@ interface ManualPosition {
   totalShares: string;
   avgCost: string;
   latestPrice: number | null;
-  lots: ManualLot[];
+  realizedPnl: number;
+  unrealizedPnl: number | null;
+  totalPnl: number | null;
+  totalPnlPercent: number | null;
+  isClosed: boolean;
+  transactions: Transaction[];
 }
 
 const POLL_INTERVAL_MS = 5000;
@@ -30,6 +37,7 @@ export function ManualPositionsTab() {
   const [data, setData] = useState<ManualPosition[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [sellingId, setSellingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pollAttemptsRef = useRef(0);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -57,7 +65,7 @@ export function ManualPositionsTab() {
 
   // Poll while any position has no latest price; cap to avoid infinite polling
   useEffect(() => {
-    const hasPending = data.some((p) => p.latestPrice === null);
+    const hasPending = data.some((p) => !p.isClosed && p.latestPrice === null);
     if (!hasPending) {
       pollAttemptsRef.current = 0;
       if (pollTimerRef.current) {
@@ -104,8 +112,35 @@ export function ManualPositionsTab() {
     await load();
   }
 
+  async function handleSell(symbol: string, values: SellFormValues) {
+    const res = await fetch("/api/positions/manual/sell", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        symbol,
+        shares: parseFloat(values.shares),
+        price: values.price,
+        sellDate: values.sellDate,
+        notes: values.notes || undefined,
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setError(body.error ?? "卖出失败");
+      return;
+    }
+    setSellingId(null);
+    await load();
+  }
+
   async function handleDeleteLot(lotId: string) {
-    await fetch(`/api/positions/manual/lots/${lotId}`, { method: "DELETE" });
+    const res = await fetch(`/api/positions/manual/lots/${lotId}`, { method: "DELETE" });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setError(body.error ?? "删除失败");
+      return;
+    }
+    setError(null);
     await load();
   }
 
@@ -145,9 +180,9 @@ export function ManualPositionsTab() {
       {data.map((p) => {
         const totalShares = parseFloat(p.totalShares);
         const avg = parseFloat(p.avgCost);
-        const cost = totalShares * avg;
-        const value = p.latestPrice != null ? totalShares * p.latestPrice : null;
-        const pnl = value != null ? value - cost : null;
+        const pnl = p.totalPnl;
+        const pct = p.totalPnlPercent;
+        const gain = pnl != null && pnl >= 0;
 
         return (
           <Card key={p.id}>
@@ -155,28 +190,30 @@ export function ManualPositionsTab() {
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-3 min-w-0">
                   <span className="font-medium">{p.symbol}</span>
-                  <span className="text-sm">{totalShares} 股</span>
-                  <span className="text-sm text-muted-foreground">
-                    均价 ${avg.toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {p.latestPrice == null ? (
-                    <span className="text-xs text-muted-foreground">价格加载中…</span>
+                  {p.isClosed ? (
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">已清仓</span>
                   ) : (
                     <>
-                      <span className="text-sm tabular-nums">
-                        ${p.latestPrice.toFixed(2)}
-                      </span>
-                      <span
-                        className={`text-sm font-medium tabular-nums ${
-                          pnl! >= 0 ? "text-red-600" : "text-green-600"
-                        }`}
-                      >
-                        {pnl! >= 0 ? "+" : ""}${pnl!.toFixed(2)} (
-                        {((pnl! / cost) * 100).toFixed(2)}%)
-                      </span>
+                      <span className="text-sm">{totalShares} 股</span>
+                      <span className="text-sm text-muted-foreground">均价 ${avg.toFixed(2)}</span>
                     </>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {!p.isClosed && (p.latestPrice == null ? (
+                    <span className="text-xs text-muted-foreground">价格加载中…</span>
+                  ) : (
+                    <span className="text-sm tabular-nums">${p.latestPrice.toFixed(2)}</span>
+                  ))}
+                  {pnl != null && pct != null && (
+                    <span className={`text-sm font-medium tabular-nums ${gain ? "text-red-600" : "text-green-600"}`}>
+                      {gain ? "+" : ""}${pnl.toFixed(2)} ({pct.toFixed(2)}%)
+                    </span>
+                  )}
+                  {!p.isClosed && (
+                    <Button variant="outline" size="sm" className="h-7" onClick={() => setSellingId(sellingId === p.id ? null : p.id)}>
+                      卖出
+                    </Button>
                   )}
                   <Button
                     variant="ghost"
@@ -188,22 +225,30 @@ export function ManualPositionsTab() {
                   </Button>
                 </div>
               </div>
-              {p.lots.length > 0 && (
+
+              {sellingId === p.id && (
+                <div className="mt-3">
+                  <SellForm
+                    symbol={p.symbol}
+                    maxShares={totalShares}
+                    onSubmit={(v) => handleSell(p.symbol, v)}
+                    onCancel={() => setSellingId(null)}
+                  />
+                </div>
+              )}
+
+              {p.transactions.length > 0 && (
                 <div className="mt-2 space-y-1 text-xs">
-                  {p.lots.map((l) => (
-                    <div
-                      key={l.id}
-                      className="flex justify-between text-muted-foreground"
-                    >
+                  {p.transactions.map((t) => (
+                    <div key={t.id} className="flex justify-between text-muted-foreground">
                       <span>
-                        {l.lotDate} · {parseFloat(l.shares)} 股 · $
-                        {parseFloat(l.costPrice).toFixed(2)}
-                        {l.notes ? ` · ${l.notes}` : ""}
+                        <span className={t.type === "SELL" ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                          {t.type === "SELL" ? "卖出" : "买入"}
+                        </span>{" "}
+                        {t.lotDate} · {parseFloat(t.shares)} 股 · ${parseFloat(t.costPrice).toFixed(2)}
+                        {t.notes ? ` · ${t.notes}` : ""}
                       </span>
-                      <button
-                        onClick={() => handleDeleteLot(l.id)}
-                        className="hover:text-destructive"
-                      >
+                      <button onClick={() => handleDeleteLot(t.id)} className="hover:text-destructive">
                         删除
                       </button>
                     </div>
