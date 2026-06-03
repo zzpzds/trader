@@ -13,6 +13,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { PnlChart } from "@/components/pnl-chart";
 import { LotForm } from "@/components/lot-form";
+import { SellForm, type SellFormValues } from "@/components/sell-form";
 
 interface Strategy {
   id: string;
@@ -23,20 +24,26 @@ interface Strategy {
   analysisWindowDays: number;
 }
 
+interface Transaction {
+  id: string;
+  type: "BUY" | "SELL";
+  shares: string;
+  costPrice: string;
+  lotDate: string;
+  notes: string | null;
+}
+
 interface Position {
   id: string;
   symbol: string;
   referencePrice: string | null;
   latestPrice: number | null;
-  positionLots: Lot[];
-}
-
-interface Lot {
-  id: string;
-  shares: string;
-  costPrice: string;
-  lotDate: string;
-  notes: string | null;
+  totalShares: string;
+  avgCost: string;
+  totalPnl: number | null;
+  totalPnlPercent: number | null;
+  isClosed: boolean;
+  transactions: Transaction[];
 }
 
 interface MonitoringRun {
@@ -65,6 +72,7 @@ export default function StrategyDetailPage() {
   const [positions, setPositions] = useState<Position[]>([]);
   const [runs, setRuns] = useState<MonitoringRun[]>([]);
   const [showAddLot, setShowAddLot] = useState(false);
+  const [sellingId, setSellingId] = useState<string | null>(null);
   const [triggerStatus, setTriggerStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [editingName, setEditingName] = useState(false);
@@ -133,8 +141,34 @@ export default function StrategyDetailPage() {
     fetchPositions();
   }
 
+  async function handleSell(symbol: string, values: SellFormValues) {
+    const res = await fetch(`/api/strategies/${id}/lots/sell`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        symbol,
+        shares: parseFloat(values.shares),
+        price: values.price,
+        sellDate: values.sellDate,
+        notes: values.notes || undefined,
+      }),
+    });
+    if (res.ok) {
+      setSellingId(null);
+      fetchPositions();
+    } else {
+      const body = await res.json().catch(() => ({}));
+      alert(body.error ?? "卖出失败");
+    }
+  }
+
   async function handleDeleteLot(lotId: string) {
-    await fetch(`/api/lots/${lotId}`, { method: "DELETE" });
+    const res = await fetch(`/api/lots/${lotId}`, { method: "DELETE" });
+    if (!res.ok && res.status !== 204) {
+      const body = await res.json().catch(() => ({}));
+      alert(body.error ?? "删除失败");
+      return;
+    }
     fetchPositions();
   }
 
@@ -294,13 +328,6 @@ export default function StrategyDetailPage() {
       cancelledRef.current = true;
       setEditingName(false);
     }
-  }
-
-  function calcAggregated(lots: Lot[]) {
-    const totalShares = lots.reduce((s, l) => s + parseFloat(l.shares), 0);
-    const totalCost = lots.reduce((s, l) => s + parseFloat(l.shares) * parseFloat(l.costPrice), 0);
-    const avgCost = totalShares > 0 ? totalCost / totalShares : 0;
-    return { totalShares, avgCost };
   }
 
   if (!strategy) return <div className="p-6">Loading...</div>;
@@ -607,19 +634,23 @@ export default function StrategyDetailPage() {
     )}
 
     {positions.map((pos) => {
-      const { totalShares, avgCost } = calcAggregated(pos.positionLots);
-      const pnl = pos.latestPrice
-        ? ((pos.latestPrice - avgCost) / avgCost * 100).toFixed(2)
-        : null;
-      const pnlPositive = pnl !== null && parseFloat(pnl) >= 0;
+      const totalShares = parseFloat(pos.totalShares);
+      const avgCost = parseFloat(pos.avgCost);
+      const pnl = pos.totalPnl;
+      const pct = pos.totalPnlPercent;
+      const gain = pnl != null && pnl >= 0;
       return (
         <div key={pos.id} className="rounded-lg border bg-card p-4">
           <div className="flex items-center justify-between flex-wrap gap-1 mb-3">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-semibold">{pos.symbol}</span>
-              <span className="text-sm text-muted-foreground">
-                {formatShares(totalShares)} 股 @ ${avgCost.toFixed(2)}
-              </span>
+              {pos.isClosed ? (
+                <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">已清仓</span>
+              ) : (
+                <span className="text-sm text-muted-foreground">
+                  {formatShares(totalShares)} 股 @ ${avgCost.toFixed(2)}
+                </span>
+              )}
               <span className="text-xs text-muted-foreground flex items-center gap-1">
                 参考价：
                 {editingRefPriceId === pos.id ? (
@@ -634,18 +665,8 @@ export default function StrategyDetailPage() {
                         if (e.key === "Escape") setEditingRefPriceId(null);
                       }}
                     />
-                    <button
-                      className="text-primary hover:text-primary/80 text-xs"
-                      onClick={() => handleSaveRefPrice(pos.id)}
-                    >
-                      确认
-                    </button>
-                    <button
-                      className="text-muted-foreground hover:text-foreground text-xs"
-                      onClick={() => setEditingRefPriceId(null)}
-                    >
-                      取消
-                    </button>
+                    <button className="text-primary hover:text-primary/80 text-xs" onClick={() => handleSaveRefPrice(pos.id)}>确认</button>
+                    <button className="text-muted-foreground hover:text-foreground text-xs" onClick={() => setEditingRefPriceId(null)}>取消</button>
                   </>
                 ) : (
                   <>
@@ -666,31 +687,49 @@ export default function StrategyDetailPage() {
                 )}
               </span>
             </div>
-            {pos.latestPrice !== null ? (
-              <span className={`text-sm font-medium ${pnlPositive ? "text-red-600" : "text-green-500"}`}>
-                ${pos.latestPrice} &nbsp;
-                <span className={`text-xs px-1.5 py-0.5 rounded ${pnlPositive ? "bg-red-50 text-red-700" : "bg-green-50 text-green-600"}`}>
-                  {pnlPositive ? "+" : ""}{pnl}%
+            <div className="flex items-center gap-2">
+              {!pos.isClosed && pos.latestPrice !== null && (
+                <span className="text-sm tabular-nums">${pos.latestPrice}</span>
+              )}
+              {pnl != null && pct != null && (
+                <span className={`text-xs px-1.5 py-0.5 rounded ${gain ? "bg-red-50 text-red-700" : "bg-green-50 text-green-600"}`}>
+                  {gain ? "+" : ""}${pnl.toFixed(2)} ({pct.toFixed(2)}%)
                 </span>
-              </span>
-            ) : (
-              <span className="text-sm text-muted-foreground">--</span>
-            )}
+              )}
+              {!pos.isClosed && (
+                <Button variant="outline" size="sm" className="h-7" onClick={() => setSellingId(sellingId === pos.id ? null : pos.id)}>
+                  卖出
+                </Button>
+              )}
+            </div>
           </div>
+
+          {sellingId === pos.id && (
+            <div className="mb-3">
+              <SellForm
+                symbol={pos.symbol}
+                maxShares={totalShares}
+                onSubmit={(v) => handleSell(pos.symbol, v)}
+                onCancel={() => setSellingId(null)}
+              />
+            </div>
+          )}
+
           <div className="divide-y">
-            {pos.positionLots.map((lot) => (
-              <div key={lot.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0 hover:bg-muted/40 transition-colors">
+            {pos.transactions.map((t) => (
+              <div key={t.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0 hover:bg-muted/40 transition-colors">
                 <div className="flex items-center gap-3 text-sm">
-                  <span className="tabular-nums">{lot.lotDate}</span>
-                  <span className="tabular-nums">{formatShares(lot.shares)}股</span>
-                  <span className="tabular-nums">${parseFloat(lot.costPrice).toFixed(2)}</span>
-                  {lot.notes && (
-                    <span className="text-muted-foreground text-xs">{lot.notes}</span>
-                  )}
+                  <span className={t.type === "SELL" ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                    {t.type === "SELL" ? "卖出" : "买入"}
+                  </span>
+                  <span className="tabular-nums">{t.lotDate}</span>
+                  <span className="tabular-nums">{formatShares(t.shares)}股</span>
+                  <span className="tabular-nums">${parseFloat(t.costPrice).toFixed(2)}</span>
+                  {t.notes && <span className="text-muted-foreground text-xs">{t.notes}</span>}
                 </div>
                 <button
                   className="text-muted-foreground hover:text-destructive transition-colors p-1 rounded"
-                  onClick={() => handleDeleteLot(lot.id)}
+                  onClick={() => handleDeleteLot(t.id)}
                 >
                   <Trash2 size={13} />
                 </button>
