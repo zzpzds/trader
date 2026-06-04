@@ -67,6 +67,21 @@ describe("getAnthropicConfig", () => {
     });
   });
 
+  it("treats empty-string overrides as unset (docker-compose ${VAR:-} case)", () => {
+    process.env.ANTHROPIC_API_KEY = "shared-key";
+    process.env.ANTHROPIC_BASE_URL = "https://shared";
+    process.env.ANTHROPIC_MODEL = "shared-model";
+    process.env.ANTHROPIC_API_KEY_NEWS = "";
+    process.env.ANTHROPIC_BASE_URL_NEWS = "";
+    process.env.ANTHROPIC_MODEL_NEWS = "";
+
+    expect(getAnthropicConfig("NEWS")).toEqual({
+      apiKey: "shared-key",
+      baseURL: "https://shared",
+      model: "shared-model",
+    });
+  });
+
   it("uses default model glm-5.1 when nothing is set", () => {
     expect(getAnthropicConfig("NEWS")).toEqual({
       apiKey: undefined,
