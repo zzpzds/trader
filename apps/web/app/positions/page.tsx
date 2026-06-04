@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PieChart, Pie, Cell, Tooltip } from "recharts";
+import { ChevronDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PnlChart } from "@/components/pnl-chart";
@@ -11,6 +12,15 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ManualPositionsTab } from "@/components/manual-positions-tab";
 
 const PIE_COLORS = ["#6366f1", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#3b82f6", "#ec4899", "#14b8a6"];
+
+interface Transaction {
+  id: string;
+  type: "BUY" | "SELL";
+  shares: string;
+  costPrice: string;
+  lotDate: string;
+  notes: string | null;
+}
 
 interface StrategyPositions {
   strategyId: string;
@@ -24,6 +34,7 @@ interface StrategyPositions {
     totalPnl: number | null;
     totalPnlPercent: number | null;
     isClosed: boolean;
+    transactions: Transaction[];
   }>;
 }
 
@@ -64,6 +75,16 @@ function PositionsPageInner() {
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [summaryError, setSummaryError] = useState(false);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  function toggleExpanded(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   useEffect(() => {
     async function fetchSummary() {
@@ -263,38 +284,74 @@ function PositionsPageInner() {
               const totalShares = parseFloat(pos.totalShares);
               const avgCost = parseFloat(pos.avgCost);
               const pct = pos.totalPnlPercent;
+              const pnl = pos.totalPnl;
               const gain = pct != null && pct >= 0;
+              const isOpen = expanded.has(pos.id);
+              const hasTxns = pos.transactions.length > 0;
 
               return (
                 <Card key={pos.id}>
-                  <CardContent className="p-3 flex items-center justify-between flex-wrap gap-1">
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline">{pos.symbol}</Badge>
-                      {pos.isClosed ? (
-                        <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">已清仓</span>
-                      ) : (
-                        <>
-                          <span className="text-sm">{totalShares} 股</span>
-                          <span className="text-sm text-muted-foreground">
-                            均价 ${avgCost.toFixed(2)}
+                  <CardContent className="p-0">
+                    <button
+                      type="button"
+                      onClick={() => hasTxns && toggleExpanded(pos.id)}
+                      disabled={!hasTxns}
+                      className={`w-full p-3 flex items-center justify-between flex-wrap gap-1 text-left ${hasTxns ? "hover:bg-muted/40 cursor-pointer" : "cursor-default"}`}
+                      aria-expanded={isOpen}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Badge variant="outline">{pos.symbol}</Badge>
+                        {pos.isClosed ? (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">已清仓</span>
+                        ) : (
+                          <>
+                            <span className="text-sm">{totalShares} 股</span>
+                            <span className="text-sm text-muted-foreground">
+                              均价 ${avgCost.toFixed(2)}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {!pos.isClosed && pos.latestPrice != null && (
+                          <span className="text-sm">${pos.latestPrice}</span>
+                        )}
+                        {pnl != null && (
+                          <span className={`text-sm ${gain ? "text-red-600" : "text-green-600"}`}>
+                            {gain ? "+" : ""}${pnl.toFixed(2)}
                           </span>
-                        </>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {!pos.isClosed && pos.latestPrice != null && (
-                        <span className="text-sm">${pos.latestPrice}</span>
-                      )}
-                      {pct != null ? (
-                        <span
-                          className={`text-sm font-medium ${gain ? "text-red-600" : "text-green-600"}`}
-                        >
-                          {gain ? "+" : ""}{pct.toFixed(2)}%
-                        </span>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">--</span>
-                      )}
-                    </div>
+                        )}
+                        {pct != null ? (
+                          <span
+                            className={`text-sm font-medium ${gain ? "text-red-600" : "text-green-600"}`}
+                          >
+                            {gain ? "+" : ""}{pct.toFixed(2)}%
+                          </span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">--</span>
+                        )}
+                        {hasTxns && (
+                          <ChevronDown
+                            className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`}
+                          />
+                        )}
+                      </div>
+                    </button>
+                    {hasTxns && isOpen && (
+                      <div className="border-t px-3 py-2 space-y-1 text-xs">
+                        {pos.transactions.map((t) => (
+                          <div key={t.id} className="flex items-start gap-2 text-muted-foreground">
+                            <span className={t.type === "SELL" ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                              {t.type === "SELL" ? "卖出" : "买入"}
+                            </span>
+                            <span>
+                              {t.lotDate} · {parseFloat(t.shares)} 股 · ${parseFloat(t.costPrice).toFixed(2)}
+                              {t.notes ? ` · ${t.notes}` : ""}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               );
