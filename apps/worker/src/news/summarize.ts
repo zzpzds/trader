@@ -37,9 +37,12 @@ ${articleText || "（无新闻）"}
     messages: [{ role: "user", content: prompt }],
   });
 
-  const block = response.content[0];
-  if (!block || block.type !== "text") {
-    throw new Error("LLM did not return a text block");
+  const textBlock = response.content.find(
+    (b): b is Anthropic.TextBlock => b.type === "text"
+  );
+  if (!textBlock) {
+    const got = response.content.map((b) => b.type).join(", ") || "empty";
+    throw new Error(`LLM did not return a text block (got: ${got})`);
   }
-  return block.text.trim();
+  return textBlock.text.trim();
 }

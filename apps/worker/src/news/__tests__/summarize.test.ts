@@ -48,7 +48,7 @@ describe("summarizeNews", () => {
     ).rejects.toThrow("rate limit");
   });
 
-  it("throws when first content block is not text", async () => {
+  it("throws when no text block is present, surfacing the actual block types", async () => {
     mockCreate.mockResolvedValueOnce({
       content: [{ type: "tool_use", id: "abc", name: "n", input: {} }],
     });
@@ -57,6 +57,21 @@ describe("summarizeNews", () => {
       summarizeNews("T1 策略", "内容", [
         { title: "x", url: "https://x", content: "x" },
       ])
-    ).rejects.toThrow(/text block/);
+    ).rejects.toThrow(/text block.*tool_use/);
+  });
+
+  it("returns the first text block even when other blocks come first", async () => {
+    mockCreate.mockResolvedValueOnce({
+      content: [
+        { type: "thinking", thinking: "..." },
+        { type: "text", text: "  实际摘要  " },
+      ],
+    });
+
+    const result = await summarizeNews("T1 策略", "内容", [
+      { title: "x", url: "https://x", content: "x" },
+    ]);
+
+    expect(result).toBe("实际摘要");
   });
 });
