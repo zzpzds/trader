@@ -47,8 +47,18 @@ export function PnlChart({ fetchUrl }: PnlChartProps) {
       });
   }, [fetchUrl, range]);
 
-  const lastPoint = data[data.length - 1];
-  const lineColor = lastPoint && lastPoint.percentPnl >= 0 ? "#dc2626" : "#16a34a";
+  // Build a vertical linear-gradient that switches red→green exactly at y=0.
+  // We lock the YAxis domain to the same [yMin, yMax] used to compute the
+  // gradient offset, otherwise recharts' auto-padding would desync the split
+  // from the actual zero line.
+  const values = data.map((d) => d.percentPnl);
+  const dataMin = values.length ? Math.min(...values) : 0;
+  const dataMax = values.length ? Math.max(...values) : 0;
+  const yMin = Math.min(0, dataMin * 1.05);
+  const yMax = Math.max(0, dataMax * 1.05);
+  const yRange = yMax - yMin || 1;
+  const gradientOffset = yMax / yRange;
+  const gradientId = `pnl-gradient-${fetchUrl}`;
 
   return (
     <div className="mb-4">
@@ -80,6 +90,12 @@ export function PnlChart({ fetchUrl }: PnlChartProps) {
       ) : (
         <ResponsiveContainer width="100%" height={160}>
           <LineChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+            <defs>
+              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset={gradientOffset} stopColor="#dc2626" stopOpacity={1} />
+                <stop offset={gradientOffset} stopColor="#16a34a" stopOpacity={1} />
+              </linearGradient>
+            </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
             <XAxis
               dataKey="date"
@@ -91,6 +107,7 @@ export function PnlChart({ fetchUrl }: PnlChartProps) {
               tick={{ fontSize: 11 }}
               tickFormatter={(v: number) => `${v}%`}
               width={48}
+              domain={[yMin, yMax]}
             />
             <Tooltip
               formatter={(value: number) => [
@@ -102,7 +119,7 @@ export function PnlChart({ fetchUrl }: PnlChartProps) {
             <Line
               type="monotone"
               dataKey="percentPnl"
-              stroke={lineColor}
+              stroke={`url(#${gradientId})`}
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 4 }}
