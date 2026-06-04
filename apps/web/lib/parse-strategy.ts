@@ -1,9 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-  baseURL: process.env.ANTHROPIC_BASE_URL,
-});
+import { getAnthropicConfig } from "./anthropic-config";
 
 const PARSE_TOOL_NAME = "parse_strategy";
 
@@ -56,10 +52,15 @@ export interface ParsedStrategy {
 }
 
 export async function parseStrategyScript(script: string): Promise<ParsedStrategy> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
+  const cfg = getAnthropicConfig("PARSE");
+  if (!cfg.apiKey) {
     throw new Error("ANTHROPIC_API_KEY 未配置，无法调用 LLM 解析");
   }
+
+  const anthropic = new Anthropic({
+    apiKey: cfg.apiKey,
+    baseURL: cfg.baseURL,
+  });
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 60_000);
@@ -68,7 +69,7 @@ export async function parseStrategyScript(script: string): Promise<ParsedStrateg
   try {
     response = await anthropic.messages.create(
       {
-        model: process.env.ANTHROPIC_MODEL ?? "glm-5.1",
+        model: cfg.model,
         max_tokens: 4096,
         system: SYSTEM_PROMPT,
         tools: [parseToolSchema],

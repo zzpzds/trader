@@ -38,25 +38,25 @@ describe("summarizeNews", () => {
     );
   });
 
-  it("returns fallback string when LLM call throws", async () => {
+  it("propagates the error when LLM call throws", async () => {
     mockCreate.mockRejectedValueOnce(new Error("rate limit"));
 
-    const result = await summarizeNews("T1 策略", "内容", [
-      { title: "x", url: "https://x", content: "x" },
-    ]);
-
-    expect(result).toBe("摘要生成失败，请稍后重试");
+    await expect(
+      summarizeNews("T1 策略", "内容", [
+        { title: "x", url: "https://x", content: "x" },
+      ])
+    ).rejects.toThrow("rate limit");
   });
 
-  it("returns fallback string when first content block is not text", async () => {
+  it("throws when first content block is not text", async () => {
     mockCreate.mockResolvedValueOnce({
       content: [{ type: "tool_use", id: "abc", name: "n", input: {} }],
     });
 
-    const result = await summarizeNews("T1 策略", "内容", [
-      { title: "x", url: "https://x", content: "x" },
-    ]);
-
-    expect(result).toBe("摘要生成失败，请稍后重试");
+    await expect(
+      summarizeNews("T1 策略", "内容", [
+        { title: "x", url: "https://x", content: "x" },
+      ])
+    ).rejects.toThrow(/text block/);
   });
 });

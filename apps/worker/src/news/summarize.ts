@@ -1,7 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { TavilyArticle } from "./tavily-fetch.js";
-
-const FALLBACK = "摘要生成失败，请稍后重试";
+import { getAnthropicConfig } from "../lib/anthropic-config.js";
 
 export async function summarizeNews(
   strategyName: string,
@@ -9,14 +8,15 @@ export async function summarizeNews(
   articles: TavilyArticle[],
   client?: Anthropic
 ): Promise<string> {
+  const cfg = getAnthropicConfig("NEWS");
   const anthropic =
     client ??
     new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-      baseURL: process.env.ANTHROPIC_BASE_URL,
+      apiKey: cfg.apiKey,
+      baseURL: cfg.baseURL,
     });
 
-  const model = process.env.ANTHROPIC_MODEL ?? "claude-3-5-haiku-20241022";
+  const model = cfg.model;
 
   const articleText = articles
     .map((a, i) => `[${i + 1}] ${a.title}\n${a.content}`)
@@ -31,20 +31,15 @@ ${articleText || "（无新闻）"}
 
 请用 200 字以内的中文总结今日热点要点，重点关注对该策略持仓的潜在影响。不要使用 Markdown 格式。`;
 
-  try {
-    const response = await anthropic.messages.create({
-      model,
-      max_tokens: 400,
-      messages: [{ role: "user", content: prompt }],
-    });
+  const response = await anthropic.messages.create({
+    model,
+    max_tokens: 400,
+    messages: [{ role: "user", content: prompt }],
+  });
 
-    const block = response.content[0];
-    return block && block.type === "text" ? block.text.trim() : FALLBACK;
-  } catch (err) {
-    console.warn(
-      "[news] LLM summarize failed:",
-      err instanceof Error ? err.message : String(err)
-    );
-    return FALLBACK;
+  const block = response.content[0];
+  if (!block || block.type !== "text") {
+    throw new Error("LLM did not return a text block");
   }
+  return block.text.trim();
 }

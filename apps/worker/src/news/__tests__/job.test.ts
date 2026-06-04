@@ -57,7 +57,7 @@ describe("runNewsJob", () => {
   it("cleans up old rows but skips per-strategy work when no strategies exist", async () => {
     const { db, deleteMock, insertMock } = makeDbMock([]);
 
-    await runNewsJob(db);
+    await runNewsJob(db, { interLlmDelayMs: 0 });
 
     expect(deleteMock).toHaveBeenCalledTimes(1);
     expect(mockTavilyFetch).not.toHaveBeenCalled();
@@ -90,7 +90,7 @@ describe("runNewsJob", () => {
       { id: "strat-1", name: "T1 策略", content: "买入规则", symbols: ["ISRG", "ROBO"] },
     ]);
 
-    await runNewsJob(db);
+    await runNewsJob(db, { interLlmDelayMs: 0 });
 
     expect(mockTavilyFetch).toHaveBeenCalledTimes(3);
     expect(mockTavilyFetch).toHaveBeenCalledWith("ISRG stock news");
@@ -137,10 +137,30 @@ describe("runNewsJob", () => {
       { id: "s3", name: "S3", content: "x", symbols: ["C"] },
     ]);
 
-    await runNewsJob(db);
+    await runNewsJob(db, { interLlmDelayMs: 0 });
 
     expect(mockSummarize).toHaveBeenCalledTimes(3);
     expect(maxInFlight).toBe(1);
+  });
+
+  it("skips DB write when summarize throws (e.g. 429 rate limit)", async () => {
+    mockSummarize.mockReset();
+    mockSummarize
+      .mockRejectedValueOnce(new Error("429 rate_limit_error"))
+      .mockResolvedValueOnce("good summary");
+
+    const { db, insertMock, valuesChain } = makeDbMock([
+      { id: "s1", name: "S1", content: "x", symbols: ["A"] },
+      { id: "s2", name: "S2", content: "x", symbols: ["B"] },
+    ]);
+
+    await runNewsJob(db, { interLlmDelayMs: 0 });
+
+    expect(mockSummarize).toHaveBeenCalledTimes(2);
+    expect(insertMock).toHaveBeenCalledTimes(1);
+    const insertedValues = (valuesChain as any).mock.calls[0][0];
+    expect(insertedValues.strategyId).toBe("s2");
+    expect(insertedValues.content).toBe("good summary");
   });
 
   it("continues other strategies when one strategy's Tavily call rejects", async () => {
@@ -154,7 +174,7 @@ describe("runNewsJob", () => {
       { id: "strat-1", name: "T1", content: "x", symbols: ["ISRG"] },
     ]);
 
-    await runNewsJob(db);
+    await runNewsJob(db, { interLlmDelayMs: 0 });
 
     expect(insertMock).toHaveBeenCalledTimes(1);
   });

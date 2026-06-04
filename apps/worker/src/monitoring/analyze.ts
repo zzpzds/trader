@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { getAnthropicConfig } from "../lib/anthropic-config.js";
 
 const REPORT_TOOL_NAME = "report_analysis";
 
@@ -53,9 +54,10 @@ export interface PositionInfo {
 }
 
 export function createAnalyzer(client?: Anthropic) {
+  const cfg = getAnthropicConfig("MONITORING");
   const anthropic = client ?? new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY,
-    baseURL: process.env.ANTHROPIC_BASE_URL,
+    apiKey: cfg.apiKey,
+    baseURL: cfg.baseURL,
   });
 
   return async function analyzeStrategy(
@@ -82,7 +84,7 @@ export function createAnalyzer(client?: Anthropic) {
       .join("\n");
 
     const response = await anthropic.messages.create({
-      model: process.env.ANTHROPIC_MODEL ?? "glm-5.1",
+      model: cfg.model,
       max_tokens: 4096,
       tools: [reportToolSchema],
       messages: [
