@@ -41,4 +41,4 @@ FROM base AS db-migrate
 COPY . .
 RUN npm run build -w packages/db
 WORKDIR /app/packages/db
-CMD ["npx", "drizzle-kit", "push"]
+CMD ["sh", "-c", "npx drizzle-kit push && npx tsx scripts/ensure-pg-extensions.ts"]

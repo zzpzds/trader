@@ -19,6 +19,8 @@
   "scripts": {
     "build": "tsc",
     "db:push": "dotenv -e ../../.env -- npx drizzle-kit push",
+    "db:setup-extensions": "dotenv -e ../../.env -- npx tsx scripts/ensure-pg-extensions.ts",
+    "db:migrate": "npm run db:push && npm run db:setup-extensions",
     "db:studio": "drizzle-kit studio",
     "test": "vitest run",
     "test:watch": "vitest"
