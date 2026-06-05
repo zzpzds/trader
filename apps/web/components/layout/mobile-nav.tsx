@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, BarChart3, Eye, Bell, Newspaper } from "lucide-react";
+import { BookOpen, BarChart3, Eye, Bell, Newspaper, StickyNote, LineChart } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -31,6 +31,16 @@ const navItems = [
     href: "/notifications",
     label: "通知",
     icon: Bell,
+  },
+  {
+    href: "/memory",
+    label: "笔记",
+    icon: StickyNote,
+  },
+  {
+    href: "/insights",
+    label: "诊断",
+    icon: LineChart,
   },
 ];
 

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.newsSummariesRelations = exports.notificationsRelations = exports.monitoringRunsRelations = exports.positionLotsRelations = exports.positionsRelations = exports.strategiesRelations = exports.priceSnapshots = exports.newsSummaries = exports.notifications = exports.monitoringRuns = exports.positionLots = exports.positions = exports.strategies = void 0;
+exports.newsSummariesRelations = exports.notificationsRelations = exports.monitoringRunsRelations = exports.positionLotsRelations = exports.positionsRelations = exports.memoriesRelations = exports.strategiesRelations = exports.priceSnapshots = exports.memories = exports.newsSummaries = exports.notifications = exports.monitoringRuns = exports.positionLots = exports.positions = exports.strategies = void 0;
 const pg_core_1 = require("drizzle-orm/pg-core");
 const drizzle_orm_1 = require("drizzle-orm");
 exports.strategies = (0, pg_core_1.pgTable)("strategies", {
@@ -38,6 +38,8 @@ exports.positionLots = (0, pg_core_1.pgTable)("position_lots", {
     positionId: (0, pg_core_1.text)("position_id")
         .notNull()
         .references(() => exports.positions.id, { onDelete: "cascade" }),
+    // BUY 行 costPrice=买入价;SELL 行 costPrice=卖出价
+    type: (0, pg_core_1.text)("type", { enum: ["BUY", "SELL"] }).notNull().default("BUY"),
     shares: (0, pg_core_1.numeric)("shares", { precision: 15, scale: 4 }).notNull(),
     costPrice: (0, pg_core_1.numeric)("cost_price", { precision: 15, scale: 4 }).notNull(),
     lotDate: (0, pg_core_1.text)("lot_date").notNull(),
@@ -87,6 +89,28 @@ exports.newsSummaries = (0, pg_core_1.pgTable)("news_summaries", {
     rawArticles: (0, pg_core_1.jsonb)("raw_articles").$type(),
     createdAt: (0, pg_core_1.timestamp)("created_at").notNull().defaultNow(),
 }, (t) => [(0, pg_core_1.uniqueIndex)("news_summaries_strategy_date_idx").on(t.strategyId, t.summaryDate)]);
+exports.memories = (0, pg_core_1.pgTable)("memories", {
+    id: (0, pg_core_1.text)("id")
+        .primaryKey()
+        .$defaultFn(() => crypto.randomUUID()),
+    title: (0, pg_core_1.text)("title").notNull(),
+    content: (0, pg_core_1.text)("content").notNull(),
+    kind: (0, pg_core_1.text)("kind", { enum: ["note", "idea", "lesson", "context"] })
+        .notNull()
+        .default("note"),
+    strategyId: (0, pg_core_1.text)("strategy_id").references(() => exports.strategies.id, {
+        onDelete: "set null",
+    }),
+    symbol: (0, pg_core_1.text)("symbol"),
+    tags: (0, pg_core_1.jsonb)("tags").$type().notNull().default([]),
+    pinned: (0, pg_core_1.boolean)("pinned").notNull().default(false),
+    createdAt: (0, pg_core_1.timestamp)("created_at").notNull().defaultNow(),
+    updatedAt: (0, pg_core_1.timestamp)("updated_at").notNull().defaultNow(),
+}, (t) => [
+    (0, pg_core_1.index)("memories_strategy_idx").on(t.strategyId),
+    (0, pg_core_1.index)("memories_symbol_idx").on(t.symbol),
+    (0, pg_core_1.index)("memories_pinned_idx").on(t.pinned),
+]);
 exports.priceSnapshots = (0, pg_core_1.pgTable)("price_snapshots", {
     symbol: (0, pg_core_1.text)("symbol").notNull(),
     date: (0, pg_core_1.date)("date").notNull(),
@@ -104,6 +128,13 @@ exports.strategiesRelations = (0, drizzle_orm_1.relations)(exports.strategies, (
     positions: many(exports.positions),
     monitoringRuns: many(exports.monitoringRuns),
     newsSummaries: many(exports.newsSummaries),
+    memories: many(exports.memories),
+}));
+exports.memoriesRelations = (0, drizzle_orm_1.relations)(exports.memories, ({ one }) => ({
+    strategy: one(exports.strategies, {
+        fields: [exports.memories.strategyId],
+        references: [exports.strategies.id],
+    }),
 }));
 exports.positionsRelations = (0, drizzle_orm_1.relations)(exports.positions, ({ one, many }) => ({
     strategy: one(exports.strategies, {

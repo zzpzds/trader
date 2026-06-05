@@ -111,6 +111,14 @@ const schema_1 = require("./schema");
         (0, vitest_1.expect)(mod).not.toHaveProperty("backtests");
         (0, vitest_1.expect)(mod).not.toHaveProperty("priceCache");
     });
+    (0, vitest_1.it)("positionLots has type column defaulting to BUY", () => {
+        const columns = Object.keys(schema_1.positionLots);
+        (0, vitest_1.expect)(columns).toContain("type");
+        const col = schema_1.positionLots.type;
+        (0, vitest_1.expect)(col.notNull).toBe(true);
+        (0, vitest_1.expect)(col.hasDefault).toBe(true);
+        (0, vitest_1.expect)(col.default).toBe("BUY");
+    });
     (0, vitest_1.it)("positionLots.shares is numeric(15,4) (supports decimals)", () => {
         const col = schema_1.positionLots.shares;
         (0, vitest_1.expect)(col.columnType).toBe("PgNumeric");
@@ -136,5 +144,35 @@ const schema_1 = require("./schema");
         (0, vitest_1.expect)(columns).toContain("close");
         (0, vitest_1.expect)(columns).toContain("volume");
         (0, vitest_1.expect)(columns).toContain("fetchedAt");
+    });
+});
+(0, vitest_1.describe)("memories table", () => {
+    (0, vitest_1.it)("has all required columns", () => {
+        const columns = Object.keys(schema_1.memories);
+        (0, vitest_1.expect)(columns).toContain("id");
+        (0, vitest_1.expect)(columns).toContain("title");
+        (0, vitest_1.expect)(columns).toContain("content");
+        (0, vitest_1.expect)(columns).toContain("kind");
+        (0, vitest_1.expect)(columns).toContain("strategyId");
+        (0, vitest_1.expect)(columns).toContain("symbol");
+        (0, vitest_1.expect)(columns).toContain("tags");
+        (0, vitest_1.expect)(columns).toContain("pinned");
+        (0, vitest_1.expect)(columns).toContain("createdAt");
+        (0, vitest_1.expect)(columns).toContain("updatedAt");
+    });
+    (0, vitest_1.it)("kind defaults to 'note'", () => {
+        const col = schema_1.memories.kind;
+        (0, vitest_1.expect)(col.notNull).toBe(true);
+        (0, vitest_1.expect)(col.hasDefault).toBe(true);
+        (0, vitest_1.expect)(col.default).toBe("note");
+    });
+    (0, vitest_1.it)("pinned defaults to false", () => {
+        const col = schema_1.memories.pinned;
+        (0, vitest_1.expect)(col.notNull).toBe(true);
+        (0, vitest_1.expect)(col.default).toBe(false);
+    });
+    (0, vitest_1.it)("strategyId is nullable", () => {
+        const col = schema_1.memories.strategyId;
+        (0, vitest_1.expect)(col.notNull).toBe(false);
     });
 });
