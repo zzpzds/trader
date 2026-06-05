@@ -9,6 +9,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  ReferenceLine,
 } from "recharts";
 
 type Range = "1m" | "3m" | "all";
@@ -105,8 +106,8 @@ export function PnlChart({ fetchUrl }: PnlChartProps) {
             />
             <YAxis
               tick={{ fontSize: 11 }}
-              tickFormatter={(v: number) => `${v}%`}
-              width={48}
+              tickFormatter={(v: number) => `${v.toFixed(2)}%`}
+              width={56}
               domain={[yMin, yMax]}
             />
             <Tooltip
@@ -116,6 +117,7 @@ export function PnlChart({ fetchUrl }: PnlChartProps) {
               ]}
               labelFormatter={(label: string) => label}
             />
+            <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeOpacity={0.5} />
             <Line
               type="monotone"
               dataKey="percentPnl"
