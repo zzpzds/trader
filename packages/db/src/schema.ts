@@ -132,6 +132,36 @@ export type NewNotificationRow = typeof notifications.$inferInsert;
 export type NewsSummaryRow = typeof newsSummaries.$inferSelect;
 export type NewNewsSummaryRow = typeof newsSummaries.$inferInsert;
 
+export const memories = pgTable(
+  "memories",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    title: text("title").notNull(),
+    content: text("content").notNull(),
+    kind: text("kind", { enum: ["note", "idea", "lesson", "context"] })
+      .notNull()
+      .default("note"),
+    strategyId: text("strategy_id").references(() => strategies.id, {
+      onDelete: "set null",
+    }),
+    symbol: text("symbol"),
+    tags: jsonb("tags").$type<string[]>().notNull().default([]),
+    pinned: boolean("pinned").notNull().default(false),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("memories_strategy_idx").on(t.strategyId),
+    index("memories_symbol_idx").on(t.symbol),
+    index("memories_pinned_idx").on(t.pinned),
+  ]
+);
+
+export type MemoryRow = typeof memories.$inferSelect;
+export type NewMemoryRow = typeof memories.$inferInsert;
+
 export const priceSnapshots = pgTable(
   "price_snapshots",
   {
@@ -157,6 +187,14 @@ export const strategiesRelations = relations(strategies, ({ many }) => ({
   positions: many(positions),
   monitoringRuns: many(monitoringRuns),
   newsSummaries: many(newsSummaries),
+  memories: many(memories),
+}));
+
+export const memoriesRelations = relations(memories, ({ one }) => ({
+  strategy: one(strategies, {
+    fields: [memories.strategyId],
+    references: [strategies.id],
+  }),
 }));
 
 export const positionsRelations = relations(positions, ({ one, many }) => ({
