@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const { mockFindMany } = vi.hoisted(() => ({
   mockFindMany: vi.fn(),
@@ -59,6 +59,11 @@ const readNotification = {
 describe("GET /api/notifications", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-21T12:00:00Z"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("returns notifications with strategyId and strategyName", async () => {
