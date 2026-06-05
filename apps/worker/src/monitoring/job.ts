@@ -9,6 +9,7 @@ import {
 } from "@trader/db";
 import { fetchPrices, type FetchResult } from "./alphavantage-fetch.js";
 import { createAnalyzer, type PositionInfo } from "./analyze.js";
+import { loadRelevantMemories } from "./load-memories.js";
 import type { drizzle } from "drizzle-orm/postgres-js";
 import type * as schema from "@trader/db";
 import pLimit from "p-limit";
@@ -230,7 +231,11 @@ export async function processStrategy(
     });
 
     const analysis = await withRetry(
-      () => analyze(strategy.name, strategy.content, positionInfos, prices),
+      async () => {
+        const symbols = strategy.positions.map((p) => p.symbol);
+        const relevantMemories = await loadRelevantMemories(db, strategy.id, symbols);
+        return analyze(strategy.name, strategy.content, positionInfos, prices, relevantMemories);
+      },
       ANALYZE_MAX_ATTEMPTS,
       ANALYZE_RETRY_BASE_MS,
       `analyze(${strategy.name})`
