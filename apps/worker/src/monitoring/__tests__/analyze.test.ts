@@ -129,4 +129,53 @@ describe("analyzeStrategy", () => {
     const result = await analyze("Test", "desc", [], {});
     expect(result.analysis).toBe("");
   });
+
+  it("includes memories section in prompt when memories provided", async () => {
+    const client = mockClient(
+      makeToolUseResponse({ analysis: "ok", has_action_items: false })
+    );
+    const analyze = createAnalyzer(client);
+    await analyze(
+      "S",
+      "rules",
+      [{ symbol: "QQQ", totalShares: 10, avgCost: 100, lots: [] }],
+      { QQQ: { latest: 110, bars: [] } },
+      [
+        { id: "1", title: "看好 QQQ", kind: "idea", symbol: "QQQ", pinned: true, contentPreview: "H100 backlog" },
+      ]
+    );
+    const prompt = (client.messages.create as any).mock.calls[0][0].messages[0].content;
+    expect(prompt).toContain("你之前留下的相关笔记");
+    expect(prompt).toContain("看好 QQQ");
+  });
+
+  it("omits memories section when memories empty", async () => {
+    const client = mockClient(
+      makeToolUseResponse({ analysis: "ok", has_action_items: false })
+    );
+    const analyze = createAnalyzer(client);
+    await analyze(
+      "S",
+      "rules",
+      [{ symbol: "QQQ", totalShares: 10, avgCost: 100, lots: [] }],
+      { QQQ: { latest: 110, bars: [] } },
+      []
+    );
+    const prompt = (client.messages.create as any).mock.calls[0][0].messages[0].content;
+    expect(prompt).not.toContain("你之前留下的相关笔记");
+  });
+
+  it("works without the memories argument (back-compat)", async () => {
+    const client = mockClient(
+      makeToolUseResponse({ analysis: "ok", has_action_items: false })
+    );
+    const analyze = createAnalyzer(client);
+    const result = await analyze(
+      "S",
+      "rules",
+      [{ symbol: "QQQ", totalShares: 10, avgCost: 100, lots: [] }],
+      { QQQ: { latest: 110, bars: [] } }
+    );
+    expect(result.analysis).toBe("ok");
+  });
 });

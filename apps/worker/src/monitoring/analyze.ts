@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { getAnthropicConfig } from "../lib/anthropic-config.js";
+import type { RelevantMemory } from "./load-memories.js";
 
 const REPORT_TOOL_NAME = "report_analysis";
 
@@ -64,8 +65,18 @@ export function createAnalyzer(client?: Anthropic) {
     strategyName: string,
     strategyContent: string,
     positions: PositionInfo[],
-    prices: Record<string, { latest: number; bars: Array<{ date: string; close: number }> }>
+    prices: Record<string, { latest: number; bars: Array<{ date: string; close: number }> }>,
+    memories: RelevantMemory[] = []
   ): Promise<AnalysisResult> {
+    const memoriesBlock = memories.length === 0
+      ? ""
+      : `## 你之前留下的相关笔记\n\n${memories
+          .map((m) => {
+            const tags = [m.pinned ? "pinned" : null, m.kind, m.symbol].filter(Boolean).join(" · ");
+            return `- [${tags}] ${m.title}：${m.contentPreview}`;
+          })
+          .join("\n")}\n\n`;
+
     const positionSummary = positions
       .map((p) => {
         const priceData = prices[p.symbol];
@@ -92,7 +103,7 @@ export function createAnalyzer(client?: Anthropic) {
           role: "user",
           content: `你是一位严格按规则行事的交易策略分析师。基于下方策略 + 持仓 + 行情，判断今天是否触发了策略规则，并产出**简短**的中文分析。
 
-## 策略：${strategyName}
+${memoriesBlock}## 策略：${strategyName}
 
 ${strategyContent}
 
