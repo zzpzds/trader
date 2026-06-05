@@ -14,6 +14,7 @@ import remarkGfm from "remark-gfm";
 import { PnlChart } from "@/components/pnl-chart";
 import { LotForm } from "@/components/lot-form";
 import { SellForm, type SellFormValues } from "@/components/sell-form";
+import { MemoryDialog, type MemoryFormValues } from "@/components/memory-dialog";
 
 interface Strategy {
   id: string;
@@ -55,7 +56,7 @@ interface MonitoringRun {
   error: string | null;
 }
 
-type Tab = "description" | "script" | "positions" | "analysis";
+type Tab = "description" | "script" | "positions" | "analysis" | "notes";
 
 function formatShares(shares: string | number): string {
   const n = typeof shares === "string" ? parseFloat(shares) : shares;
@@ -337,6 +338,7 @@ export default function StrategyDetailPage() {
     { key: "description", label: "策略描述" },
     { key: "script", label: "原始脚本" },
     { key: "analysis", label: "最近分析" },
+    { key: "notes", label: "笔记" },
   ];
 
   return (
@@ -746,6 +748,8 @@ export default function StrategyDetailPage() {
   </div>
 )}
 
+      {tab === "notes" && <NotesPanel strategyId={id} />}
+
       {tab === "analysis" && (
         <div className="space-y-3">
           {runs.length === 0 && (
@@ -789,6 +793,79 @@ export default function StrategyDetailPage() {
         </div>
       )}
       </div>
+    </div>
+  );
+}
+
+interface NotePanelMemory {
+  id: string;
+  title: string;
+  content: string;
+  kind: "note" | "idea" | "lesson" | "context";
+  strategyId: string | null;
+  symbol: string | null;
+  tags: string[];
+  pinned: boolean;
+  updatedAt: string;
+}
+
+function NotesPanel({ strategyId }: { strategyId: string }) {
+  const [memories, setMemories] = useState<NotePanelMemory[]>([]);
+  const [editing, setEditing] = useState<Partial<MemoryFormValues> | null>(null);
+  const [strategies, setStrategies] = useState<Array<{ id: string; name: string }>>([]);
+
+  const refresh = useCallback(async () => {
+    const res = await fetch(`/api/memories?strategyId=${strategyId}`);
+    setMemories(await res.json());
+  }, [strategyId]);
+
+  useEffect(() => {
+    refresh();
+    fetch("/api/strategies").then((r) => r.json()).then(setStrategies);
+  }, [refresh]);
+
+  return (
+    <div className="space-y-3">
+      <Button onClick={() => setEditing({ strategyId })}>
+        <Plus size={14} /> 新建笔记
+      </Button>
+      {memories.length === 0 && (
+        <p className="text-sm text-muted-foreground py-4">该策略还没有笔记。</p>
+      )}
+      <div className="grid gap-2">
+        {memories.map((m) => (
+          <Card key={m.id} className="cursor-pointer hover:shadow" onClick={() => setEditing({
+            id: m.id,
+            title: m.title,
+            content: m.content,
+            kind: m.kind,
+            strategyId: m.strategyId,
+            symbol: m.symbol,
+            tags: m.tags,
+            pinned: m.pinned,
+          })}>
+            <CardContent className="py-3">
+              <div className="flex items-center gap-2">
+                {m.pinned && <span title="置顶">📌</span>}
+                <span className="font-medium">{m.title}</span>
+                <span className="ml-auto text-[11px] text-muted-foreground">
+                  {new Date(m.updatedAt).toLocaleDateString()}
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{m.content}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      {editing !== null && (
+        <MemoryDialog
+          open
+          initial={editing}
+          strategies={strategies}
+          onClose={() => setEditing(null)}
+          onSaved={refresh}
+        />
+      )}
     </div>
   );
 }
