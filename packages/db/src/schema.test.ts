@@ -7,6 +7,7 @@ import {
   notifications,
   newsSummaries,
   priceSnapshots,
+  memories,
 } from "./schema";
 
 describe("schema exports", () => {
@@ -130,5 +131,39 @@ describe("schema exports", () => {
     expect(columns).toContain("close");
     expect(columns).toContain("volume");
     expect(columns).toContain("fetchedAt");
+  });
+});
+
+describe("memories table", () => {
+  it("has all required columns", () => {
+    const columns = Object.keys(memories);
+    expect(columns).toContain("id");
+    expect(columns).toContain("title");
+    expect(columns).toContain("content");
+    expect(columns).toContain("kind");
+    expect(columns).toContain("strategyId");
+    expect(columns).toContain("symbol");
+    expect(columns).toContain("tags");
+    expect(columns).toContain("pinned");
+    expect(columns).toContain("createdAt");
+    expect(columns).toContain("updatedAt");
+  });
+
+  it("kind defaults to 'note'", () => {
+    const col = (memories as any).kind;
+    expect(col.notNull).toBe(true);
+    expect(col.hasDefault).toBe(true);
+    expect(col.default).toBe("note");
+  });
+
+  it("pinned defaults to false", () => {
+    const col = (memories as any).pinned;
+    expect(col.notNull).toBe(true);
+    expect(col.default).toBe(false);
+  });
+
+  it("strategyId is nullable", () => {
+    const col = (memories as any).strategyId;
+    expect(col.notNull).toBe(false);
   });
 });
