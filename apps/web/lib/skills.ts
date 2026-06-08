@@ -2,6 +2,26 @@ import { eq, asc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { skills, strategySkills, type SkillRow } from "@trader/db";
 
+// Postgres error codes (https://www.postgresql.org/docs/current/errcodes-appendix.html)
+export const PG_ERROR_CODES = {
+  UNIQUE_VIOLATION: "23505",
+  FK_VIOLATION: "23503",
+} as const;
+
+function getPgErrorCode(err: unknown): string | undefined {
+  return typeof err === "object" && err !== null && "code" in err
+    ? ((err as { code?: unknown }).code as string | undefined)
+    : undefined;
+}
+
+export function isUniqueViolation(err: unknown): boolean {
+  return getPgErrorCode(err) === PG_ERROR_CODES.UNIQUE_VIOLATION;
+}
+
+export function isFkViolation(err: unknown): boolean {
+  return getPgErrorCode(err) === PG_ERROR_CODES.FK_VIOLATION;
+}
+
 export const SKILL_BODY_MAX = 6000;
 export const STRATEGY_SKILLS_MAX = 3;
 export const SKILL_CATEGORIES = [
@@ -129,15 +149,6 @@ export async function getSkill(id: string): Promise<SkillRow | null> {
   return row ?? null;
 }
 
-function isUniqueViolation(err: unknown): boolean {
-  return (
-    !!err &&
-    typeof err === "object" &&
-    "code" in err &&
-    (err as { code?: string }).code === "23505"
-  );
-}
-
 export async function createSkill(input: CreateSkillInput): Promise<SkillRow> {
   const nameErr = validateSkillName(input.name);
   if (nameErr) throw new ValidationError(nameErr);
@@ -228,10 +239,9 @@ export async function updateSkill(
     return rows[0] ?? null;
   } catch (err) {
     if (isUniqueViolation(err)) {
+      // The only UNIQUE column is `name`, which is only updated when patch.name is set.
       throw new ConflictError(
-        typeof updates.name === "string"
-          ? `skill with name "${updates.name}" already exists`
-          : "skill name conflict"
+        `skill with name "${String(updates.name)}" already exists`
       );
     }
     throw err;

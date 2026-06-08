@@ -256,7 +256,3 @@ describe("setStrategySkills (mocked db)", () => {
 // ConflictError when the DB rejects a duplicate name (race-safe path tested
 // via mocked 23505 above). CASCADE delete is exercised by integration smoke
 // tests / schema tests in @trader/db.
-describe("schema-level invariants (documentation)", () => {
-  it.skip("name UNIQUE: enforced by schema.ts skills.name.unique()", () => {});
-  it.skip("strategy_skills CASCADE: enforced by schema.ts onDelete: 'cascade'", () => {});
-});

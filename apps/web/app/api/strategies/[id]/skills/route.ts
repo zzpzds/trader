@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import {
   ValidationError,
   getStrategySkillIds,
+  isFkViolation,
   setStrategySkills,
 } from "@/lib/skills";
 
@@ -32,13 +33,8 @@ export async function PUT(
     if (err instanceof ValidationError) {
       return Response.json({ error: err.message }, { status: 400 });
     }
-    // FK violation on unknown skill id (postgres code 23503) → 400
-    if (
-      err &&
-      typeof err === "object" &&
-      "code" in err &&
-      (err as { code?: string }).code === "23503"
-    ) {
+    // FK violation on unknown skill id → 400
+    if (isFkViolation(err)) {
       return Response.json(
         { error: "one or more skillIds reference unknown skill or strategy" },
         { status: 400 }
