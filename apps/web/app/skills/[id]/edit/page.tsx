@@ -10,10 +10,8 @@ export default async function EditSkillPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const skill = await getSkill(id);
+  const [skill, usage] = await Promise.all([getSkill(id), getSkillUsage(id)]);
   if (!skill) notFound();
-
-  const usage = await getSkillUsage(id);
 
   return (
     <SkillEditor
