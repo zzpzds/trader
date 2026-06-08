@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   strategies,
+  strategiesRelations,
   positions,
   positionLots,
   monitoringRuns,
@@ -8,6 +9,8 @@ import {
   newsSummaries,
   priceSnapshots,
   memories,
+  skills,
+  strategySkills,
 } from "./schema";
 
 describe("schema exports", () => {
@@ -165,5 +168,73 @@ describe("memories table", () => {
   it("strategyId is nullable", () => {
     const col = (memories as any).strategyId;
     expect(col.notNull).toBe(false);
+  });
+});
+
+describe("skills + strategy_skills tables", () => {
+  it("skills table has required columns", () => {
+    const columns = Object.keys(skills);
+    expect(columns).toContain("id");
+    expect(columns).toContain("name");
+    expect(columns).toContain("description");
+    expect(columns).toContain("category");
+    expect(columns).toContain("bodyMd");
+    expect(columns).toContain("source");
+    expect(columns).toContain("createdAt");
+    expect(columns).toContain("updatedAt");
+  });
+
+  it("skills.name is notNull and unique", () => {
+    const col = (skills as any).name;
+    expect(col.notNull).toBe(true);
+    expect(col.isUnique).toBe(true);
+  });
+
+  it("skills.bodyMd is notNull (no length CHECK in DB)", () => {
+    const col = (skills as any).bodyMd;
+    expect(col.notNull).toBe(true);
+  });
+
+  it("skills.source defaults to 'user'", () => {
+    const col = (skills as any).source;
+    expect(col.notNull).toBe(true);
+    expect(col.hasDefault).toBe(true);
+    expect(col.default).toBe("user");
+  });
+
+  it("strategy_skills table has required columns", () => {
+    const columns = Object.keys(strategySkills);
+    expect(columns).toContain("strategyId");
+    expect(columns).toContain("skillId");
+    expect(columns).toContain("createdAt");
+  });
+
+  it("strategy_skills.strategyId and skillId are notNull", () => {
+    expect((strategySkills as any).strategyId.notNull).toBe(true);
+    expect((strategySkills as any).skillId.notNull).toBe(true);
+  });
+
+  it("monitoringRuns has skillSnapshot column (nullable jsonb)", () => {
+    const columns = Object.keys(monitoringRuns);
+    expect(columns).toContain("skillSnapshot");
+    const col = (monitoringRuns as any).skillSnapshot;
+    expect(col.notNull).toBe(false);
+  });
+
+  it("strategiesRelations exposes skills relation via strategy_skills", () => {
+    // drizzle wraps each relation entry via `.withFieldName(key)`; provide stubs
+    // that return an object with that method so the builder doesn't blow up.
+    const makeStub = (kind: string) => () => {
+      const r: any = { kind, withFieldName: (n: string) => ({ ...r, fieldName: n }) };
+      return r;
+    };
+    const builder = (strategiesRelations as any).config as (helpers: {
+      one: ReturnType<typeof makeStub>;
+      many: ReturnType<typeof makeStub>;
+    }) => Record<string, unknown>;
+    const config = builder({ one: makeStub("one"), many: makeStub("many") });
+    expect(config).toHaveProperty("skills");
+    expect(config).toHaveProperty("positions");
+    expect(config).toHaveProperty("monitoringRuns");
   });
 });

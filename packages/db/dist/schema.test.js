@@ -176,3 +176,60 @@ const schema_1 = require("./schema");
         (0, vitest_1.expect)(col.notNull).toBe(false);
     });
 });
+(0, vitest_1.describe)("skills + strategy_skills tables", () => {
+    (0, vitest_1.it)("skills table has required columns", () => {
+        const columns = Object.keys(schema_1.skills);
+        (0, vitest_1.expect)(columns).toContain("id");
+        (0, vitest_1.expect)(columns).toContain("name");
+        (0, vitest_1.expect)(columns).toContain("description");
+        (0, vitest_1.expect)(columns).toContain("category");
+        (0, vitest_1.expect)(columns).toContain("bodyMd");
+        (0, vitest_1.expect)(columns).toContain("source");
+        (0, vitest_1.expect)(columns).toContain("createdAt");
+        (0, vitest_1.expect)(columns).toContain("updatedAt");
+    });
+    (0, vitest_1.it)("skills.name is notNull and unique", () => {
+        const col = schema_1.skills.name;
+        (0, vitest_1.expect)(col.notNull).toBe(true);
+        (0, vitest_1.expect)(col.isUnique).toBe(true);
+    });
+    (0, vitest_1.it)("skills.bodyMd is notNull (no length CHECK in DB)", () => {
+        const col = schema_1.skills.bodyMd;
+        (0, vitest_1.expect)(col.notNull).toBe(true);
+    });
+    (0, vitest_1.it)("skills.source defaults to 'user'", () => {
+        const col = schema_1.skills.source;
+        (0, vitest_1.expect)(col.notNull).toBe(true);
+        (0, vitest_1.expect)(col.hasDefault).toBe(true);
+        (0, vitest_1.expect)(col.default).toBe("user");
+    });
+    (0, vitest_1.it)("strategy_skills table has required columns", () => {
+        const columns = Object.keys(schema_1.strategySkills);
+        (0, vitest_1.expect)(columns).toContain("strategyId");
+        (0, vitest_1.expect)(columns).toContain("skillId");
+        (0, vitest_1.expect)(columns).toContain("createdAt");
+    });
+    (0, vitest_1.it)("strategy_skills.strategyId and skillId are notNull", () => {
+        (0, vitest_1.expect)(schema_1.strategySkills.strategyId.notNull).toBe(true);
+        (0, vitest_1.expect)(schema_1.strategySkills.skillId.notNull).toBe(true);
+    });
+    (0, vitest_1.it)("monitoringRuns has skillSnapshot column (nullable jsonb)", () => {
+        const columns = Object.keys(schema_1.monitoringRuns);
+        (0, vitest_1.expect)(columns).toContain("skillSnapshot");
+        const col = schema_1.monitoringRuns.skillSnapshot;
+        (0, vitest_1.expect)(col.notNull).toBe(false);
+    });
+    (0, vitest_1.it)("strategiesRelations exposes skills relation via strategy_skills", () => {
+        // drizzle wraps each relation entry via `.withFieldName(key)`; provide stubs
+        // that return an object with that method so the builder doesn't blow up.
+        const makeStub = (kind) => () => {
+            const r = { kind, withFieldName: (n) => ({ ...r, fieldName: n }) };
+            return r;
+        };
+        const builder = schema_1.strategiesRelations.config;
+        const config = builder({ one: makeStub("one"), many: makeStub("many") });
+        (0, vitest_1.expect)(config).toHaveProperty("skills");
+        (0, vitest_1.expect)(config).toHaveProperty("positions");
+        (0, vitest_1.expect)(config).toHaveProperty("monitoringRuns");
+    });
+});

@@ -83,6 +83,9 @@ export const monitoringRuns = pgTable(
     analysis: text("analysis"),
     hasActionItems: boolean("has_action_items"),
     prices: jsonb("prices").$type<Record<string, number>>(),
+    skillSnapshot: jsonb("skill_snapshot").$type<
+      Array<{ id: string; name: string; body_md_hash: string; body_md_preview: string }>
+    >(),
     error: text("error"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
@@ -183,11 +186,44 @@ export const priceSnapshots = pgTable(
 export type PriceSnapshotRow = typeof priceSnapshots.$inferSelect;
 export type NewPriceSnapshotRow = typeof priceSnapshots.$inferInsert;
 
+export const skills = pgTable("skills", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  category: text("category"),
+  bodyMd: text("body_md").notNull(),
+  source: text("source").notNull().default("user"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const strategySkills = pgTable(
+  "strategy_skills",
+  {
+    strategyId: text("strategy_id")
+      .notNull()
+      .references(() => strategies.id, { onDelete: "cascade" }),
+    skillId: text("skill_id")
+      .notNull()
+      .references(() => skills.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.strategyId, t.skillId] })]
+);
+
+export type SkillRow = typeof skills.$inferSelect;
+export type NewSkillRow = typeof skills.$inferInsert;
+export type StrategySkillRow = typeof strategySkills.$inferSelect;
+export type NewStrategySkillRow = typeof strategySkills.$inferInsert;
+
 export const strategiesRelations = relations(strategies, ({ many }) => ({
   positions: many(positions),
   monitoringRuns: many(monitoringRuns),
   newsSummaries: many(newsSummaries),
   memories: many(memories),
+  skills: many(strategySkills),
 }));
 
 export const memoriesRelations = relations(memories, ({ one }) => ({
@@ -230,5 +266,20 @@ export const newsSummariesRelations = relations(newsSummaries, ({ one }) => ({
   strategy: one(strategies, {
     fields: [newsSummaries.strategyId],
     references: [strategies.id],
+  }),
+}));
+
+export const skillsRelations = relations(skills, ({ many }) => ({
+  strategies: many(strategySkills),
+}));
+
+export const strategySkillsRelations = relations(strategySkills, ({ one }) => ({
+  strategy: one(strategies, {
+    fields: [strategySkills.strategyId],
+    references: [strategies.id],
+  }),
+  skill: one(skills, {
+    fields: [strategySkills.skillId],
+    references: [skills.id],
   }),
 }));

@@ -8,6 +8,13 @@
       "when": 1779106545585,
       "tag": "0000_black_madame_web",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1780908751959,
+      "tag": "0001_small_risque",
+      "breakpoints": true
     }
   ]
 }

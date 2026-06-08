@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.newsSummariesRelations = exports.notificationsRelations = exports.monitoringRunsRelations = exports.positionLotsRelations = exports.positionsRelations = exports.memoriesRelations = exports.strategiesRelations = exports.priceSnapshots = exports.memories = exports.newsSummaries = exports.notifications = exports.monitoringRuns = exports.positionLots = exports.positions = exports.strategies = void 0;
+exports.strategySkillsRelations = exports.skillsRelations = exports.newsSummariesRelations = exports.notificationsRelations = exports.monitoringRunsRelations = exports.positionLotsRelations = exports.positionsRelations = exports.memoriesRelations = exports.strategiesRelations = exports.strategySkills = exports.skills = exports.priceSnapshots = exports.memories = exports.newsSummaries = exports.notifications = exports.monitoringRuns = exports.positionLots = exports.positions = exports.strategies = void 0;
 const pg_core_1 = require("drizzle-orm/pg-core");
 const drizzle_orm_1 = require("drizzle-orm");
 exports.strategies = (0, pg_core_1.pgTable)("strategies", {
@@ -62,6 +62,7 @@ exports.monitoringRuns = (0, pg_core_1.pgTable)("monitoring_runs", {
     analysis: (0, pg_core_1.text)("analysis"),
     hasActionItems: (0, pg_core_1.boolean)("has_action_items"),
     prices: (0, pg_core_1.jsonb)("prices").$type(),
+    skillSnapshot: (0, pg_core_1.jsonb)("skill_snapshot").$type(),
     error: (0, pg_core_1.text)("error"),
     createdAt: (0, pg_core_1.timestamp)("created_at").notNull().defaultNow(),
 }, (t) => [(0, pg_core_1.index)("monitoring_runs_strategy_date_idx").on(t.strategyId, t.runDate)]);
@@ -124,11 +125,33 @@ exports.priceSnapshots = (0, pg_core_1.pgTable)("price_snapshots", {
     (0, pg_core_1.primaryKey)({ columns: [t.symbol, t.date] }),
     (0, pg_core_1.index)("price_snapshots_symbol_date_desc_idx").on(t.symbol, t.date.desc()),
 ]);
+exports.skills = (0, pg_core_1.pgTable)("skills", {
+    id: (0, pg_core_1.text)("id")
+        .primaryKey()
+        .$defaultFn(() => crypto.randomUUID()),
+    name: (0, pg_core_1.text)("name").notNull().unique(),
+    description: (0, pg_core_1.text)("description"),
+    category: (0, pg_core_1.text)("category"),
+    bodyMd: (0, pg_core_1.text)("body_md").notNull(),
+    source: (0, pg_core_1.text)("source").notNull().default("user"),
+    createdAt: (0, pg_core_1.timestamp)("created_at").notNull().defaultNow(),
+    updatedAt: (0, pg_core_1.timestamp)("updated_at").notNull().defaultNow(),
+});
+exports.strategySkills = (0, pg_core_1.pgTable)("strategy_skills", {
+    strategyId: (0, pg_core_1.text)("strategy_id")
+        .notNull()
+        .references(() => exports.strategies.id, { onDelete: "cascade" }),
+    skillId: (0, pg_core_1.text)("skill_id")
+        .notNull()
+        .references(() => exports.skills.id, { onDelete: "cascade" }),
+    createdAt: (0, pg_core_1.timestamp)("created_at").notNull().defaultNow(),
+}, (t) => [(0, pg_core_1.primaryKey)({ columns: [t.strategyId, t.skillId] })]);
 exports.strategiesRelations = (0, drizzle_orm_1.relations)(exports.strategies, ({ many }) => ({
     positions: many(exports.positions),
     monitoringRuns: many(exports.monitoringRuns),
     newsSummaries: many(exports.newsSummaries),
     memories: many(exports.memories),
+    skills: many(exports.strategySkills),
 }));
 exports.memoriesRelations = (0, drizzle_orm_1.relations)(exports.memories, ({ one }) => ({
     strategy: one(exports.strategies, {
@@ -165,5 +188,18 @@ exports.newsSummariesRelations = (0, drizzle_orm_1.relations)(exports.newsSummar
     strategy: one(exports.strategies, {
         fields: [exports.newsSummaries.strategyId],
         references: [exports.strategies.id],
+    }),
+}));
+exports.skillsRelations = (0, drizzle_orm_1.relations)(exports.skills, ({ many }) => ({
+    strategies: many(exports.strategySkills),
+}));
+exports.strategySkillsRelations = (0, drizzle_orm_1.relations)(exports.strategySkills, ({ one }) => ({
+    strategy: one(exports.strategies, {
+        fields: [exports.strategySkills.strategyId],
+        references: [exports.strategies.id],
+    }),
+    skill: one(exports.skills, {
+        fields: [exports.strategySkills.skillId],
+        references: [exports.skills.id],
     }),
 }));

@@ -520,6 +520,35 @@ export declare const monitoringRuns: import("drizzle-orm/pg-core").PgTableWithCo
         }, {}, {
             $type: Record<string, number>;
         }>;
+        skillSnapshot: import("drizzle-orm/pg-core").PgColumn<{
+            name: "skill_snapshot";
+            tableName: "monitoring_runs";
+            dataType: "json";
+            columnType: "PgJsonb";
+            data: {
+                id: string;
+                name: string;
+                body_md_hash: string;
+                body_md_preview: string;
+            }[];
+            driverParam: unknown;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            $type: {
+                id: string;
+                name: string;
+                body_md_hash: string;
+                body_md_preview: string;
+            }[];
+        }>;
         error: import("drizzle-orm/pg-core").PgColumn<{
             name: "error";
             tableName: "monitoring_runs";
@@ -1123,11 +1152,217 @@ export declare const priceSnapshots: import("drizzle-orm/pg-core").PgTableWithCo
 }>;
 export type PriceSnapshotRow = typeof priceSnapshots.$inferSelect;
 export type NewPriceSnapshotRow = typeof priceSnapshots.$inferInsert;
+export declare const skills: import("drizzle-orm/pg-core").PgTableWithColumns<{
+    name: "skills";
+    schema: undefined;
+    columns: {
+        id: import("drizzle-orm/pg-core").PgColumn<{
+            name: "id";
+            tableName: "skills";
+            dataType: "string";
+            columnType: "PgText";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: true;
+            isPrimaryKey: true;
+            isAutoincrement: false;
+            hasRuntimeDefault: true;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        name: import("drizzle-orm/pg-core").PgColumn<{
+            name: "name";
+            tableName: "skills";
+            dataType: "string";
+            columnType: "PgText";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        description: import("drizzle-orm/pg-core").PgColumn<{
+            name: "description";
+            tableName: "skills";
+            dataType: "string";
+            columnType: "PgText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        category: import("drizzle-orm/pg-core").PgColumn<{
+            name: "category";
+            tableName: "skills";
+            dataType: "string";
+            columnType: "PgText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        bodyMd: import("drizzle-orm/pg-core").PgColumn<{
+            name: "body_md";
+            tableName: "skills";
+            dataType: "string";
+            columnType: "PgText";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        source: import("drizzle-orm/pg-core").PgColumn<{
+            name: "source";
+            tableName: "skills";
+            dataType: "string";
+            columnType: "PgText";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: true;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        createdAt: import("drizzle-orm/pg-core").PgColumn<{
+            name: "created_at";
+            tableName: "skills";
+            dataType: "date";
+            columnType: "PgTimestamp";
+            data: Date;
+            driverParam: string;
+            notNull: true;
+            hasDefault: true;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        updatedAt: import("drizzle-orm/pg-core").PgColumn<{
+            name: "updated_at";
+            tableName: "skills";
+            dataType: "date";
+            columnType: "PgTimestamp";
+            data: Date;
+            driverParam: string;
+            notNull: true;
+            hasDefault: true;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+    };
+    dialect: "pg";
+}>;
+export declare const strategySkills: import("drizzle-orm/pg-core").PgTableWithColumns<{
+    name: "strategy_skills";
+    schema: undefined;
+    columns: {
+        strategyId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "strategy_id";
+            tableName: "strategy_skills";
+            dataType: "string";
+            columnType: "PgText";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        skillId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "skill_id";
+            tableName: "strategy_skills";
+            dataType: "string";
+            columnType: "PgText";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        createdAt: import("drizzle-orm/pg-core").PgColumn<{
+            name: "created_at";
+            tableName: "strategy_skills";
+            dataType: "date";
+            columnType: "PgTimestamp";
+            data: Date;
+            driverParam: string;
+            notNull: true;
+            hasDefault: true;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+    };
+    dialect: "pg";
+}>;
+export type SkillRow = typeof skills.$inferSelect;
+export type NewSkillRow = typeof skills.$inferInsert;
+export type StrategySkillRow = typeof strategySkills.$inferSelect;
+export type NewStrategySkillRow = typeof strategySkills.$inferInsert;
 export declare const strategiesRelations: import("drizzle-orm").Relations<"strategies", {
     positions: import("drizzle-orm").Many<"positions">;
     monitoringRuns: import("drizzle-orm").Many<"monitoring_runs">;
     newsSummaries: import("drizzle-orm").Many<"news_summaries">;
     memories: import("drizzle-orm").Many<"memories">;
+    skills: import("drizzle-orm").Many<"strategy_skills">;
 }>;
 export declare const memoriesRelations: import("drizzle-orm").Relations<"memories", {
     strategy: import("drizzle-orm").One<"strategies", false>;
@@ -1147,4 +1382,11 @@ export declare const notificationsRelations: import("drizzle-orm").Relations<"no
 }>;
 export declare const newsSummariesRelations: import("drizzle-orm").Relations<"news_summaries", {
     strategy: import("drizzle-orm").One<"strategies", true>;
+}>;
+export declare const skillsRelations: import("drizzle-orm").Relations<"skills", {
+    strategies: import("drizzle-orm").Many<"strategy_skills">;
+}>;
+export declare const strategySkillsRelations: import("drizzle-orm").Relations<"strategy_skills", {
+    strategy: import("drizzle-orm").One<"strategies", true>;
+    skill: import("drizzle-orm").One<"skills", true>;
 }>;
