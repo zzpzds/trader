@@ -83,9 +83,7 @@ export const monitoringRuns = pgTable(
     analysis: text("analysis"),
     hasActionItems: boolean("has_action_items"),
     prices: jsonb("prices").$type<Record<string, number>>(),
-    skillSnapshot: jsonb("skill_snapshot").$type<
-      Array<{ id: string; name: string; body_md_hash: string; body_md_preview: string }>
-    >(),
+    skillSnapshot: jsonb("skill_snapshot").$type<SkillSnapshot[]>(),
     error: text("error"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
@@ -130,6 +128,12 @@ export type PositionLotRow = typeof positionLots.$inferSelect;
 export type NewPositionLotRow = typeof positionLots.$inferInsert;
 export type MonitoringRunRow = typeof monitoringRuns.$inferSelect;
 export type NewMonitoringRunRow = typeof monitoringRuns.$inferInsert;
+export type SkillSnapshot = {
+  id: string;
+  name: string;
+  body_md_hash: string;
+  body_md_preview: string;
+};
 export type NotificationRow = typeof notifications.$inferSelect;
 export type NewNotificationRow = typeof notifications.$inferInsert;
 export type NewsSummaryRow = typeof newsSummaries.$inferSelect;
@@ -193,12 +197,14 @@ export const skills = pgTable("skills", {
   name: text("name").notNull().unique(),
   description: text("description"),
   category: text("category"),
+  // length cap (≤ 6000 chars) enforced at the API layer, not via DB CHECK
   bodyMd: text("body_md").notNull(),
   source: text("source").notNull().default("user"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// max 3 skills per strategy enforced at the API layer
 export const strategySkills = pgTable(
   "strategy_skills",
   {

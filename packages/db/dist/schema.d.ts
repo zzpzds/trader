@@ -525,12 +525,7 @@ export declare const monitoringRuns: import("drizzle-orm/pg-core").PgTableWithCo
             tableName: "monitoring_runs";
             dataType: "json";
             columnType: "PgJsonb";
-            data: {
-                id: string;
-                name: string;
-                body_md_hash: string;
-                body_md_preview: string;
-            }[];
+            data: SkillSnapshot[];
             driverParam: unknown;
             notNull: false;
             hasDefault: false;
@@ -542,12 +537,7 @@ export declare const monitoringRuns: import("drizzle-orm/pg-core").PgTableWithCo
             identity: undefined;
             generated: undefined;
         }, {}, {
-            $type: {
-                id: string;
-                name: string;
-                body_md_hash: string;
-                body_md_preview: string;
-            }[];
+            $type: SkillSnapshot[];
         }>;
         error: import("drizzle-orm/pg-core").PgColumn<{
             name: "error";
@@ -822,6 +812,12 @@ export type PositionLotRow = typeof positionLots.$inferSelect;
 export type NewPositionLotRow = typeof positionLots.$inferInsert;
 export type MonitoringRunRow = typeof monitoringRuns.$inferSelect;
 export type NewMonitoringRunRow = typeof monitoringRuns.$inferInsert;
+export type SkillSnapshot = {
+    id: string;
+    name: string;
+    body_md_hash: string;
+    body_md_preview: string;
+};
 export type NotificationRow = typeof notifications.$inferSelect;
 export type NewNotificationRow = typeof notifications.$inferInsert;
 export type NewsSummaryRow = typeof newsSummaries.$inferSelect;

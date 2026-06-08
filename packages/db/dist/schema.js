@@ -132,11 +132,13 @@ exports.skills = (0, pg_core_1.pgTable)("skills", {
     name: (0, pg_core_1.text)("name").notNull().unique(),
     description: (0, pg_core_1.text)("description"),
     category: (0, pg_core_1.text)("category"),
+    // length cap (≤ 6000 chars) enforced at the API layer, not via DB CHECK
     bodyMd: (0, pg_core_1.text)("body_md").notNull(),
     source: (0, pg_core_1.text)("source").notNull().default("user"),
     createdAt: (0, pg_core_1.timestamp)("created_at").notNull().defaultNow(),
     updatedAt: (0, pg_core_1.timestamp)("updated_at").notNull().defaultNow(),
 });
+// max 3 skills per strategy enforced at the API layer
 exports.strategySkills = (0, pg_core_1.pgTable)("strategy_skills", {
     strategyId: (0, pg_core_1.text)("strategy_id")
         .notNull()
