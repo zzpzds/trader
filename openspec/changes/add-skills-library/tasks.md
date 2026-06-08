@@ -39,10 +39,10 @@
 
 ## 6. 策略详情页关联 UI
 
-- [ ] 6.1 在 `apps/web/app/strategies/[id]/page.tsx` 增加「关联技能」区域，显示当前关联的 skill chips
-- [ ] 6.2 增加「编辑关联」交互（多选弹窗或行内编辑），数量上限 3 在 UI 强制
-- [ ] 6.3 提交时调用 `PUT /api/strategies/[id]/skills`，成功后刷新页面状态
-- [ ] 6.4 列表/卡片视图（如有）显示关联的 skill 数量徽章
+- [x] 6.1 在 `apps/web/app/strategies/[id]/page.tsx` 增加「关联技能」区域，显示当前关联的 skill chips
+- [x] 6.2 增加「编辑关联」交互（多选弹窗或行内编辑），数量上限 3 在 UI 强制
+- [x] 6.3 提交时调用 `PUT /api/strategies/[id]/skills`，成功后刷新页面状态
+- [~] 6.4 列表/卡片视图（如有）显示关联的 skill 数量徽章 — 跳过：`/strategies` 列表当前未展示其他元数据徽章，加 skill 计数会显得突兀；spec 标记为「如有」
 
 ## 7. analyze.ts 注入 skill
 

@@ -15,6 +15,13 @@ import { PnlChart } from "@/components/pnl-chart";
 import { LotForm } from "@/components/lot-form";
 import { SellForm, type SellFormValues } from "@/components/sell-form";
 import { MemoryDialog, type MemoryFormValues } from "@/components/memory-dialog";
+import {
+  CATEGORY_LABELS,
+  SKILL_CATEGORIES,
+  STRATEGY_SKILLS_MAX,
+  categoryLabel,
+  type SkillCategory,
+} from "@/lib/skills-ui";
 
 interface Strategy {
   id: string;
@@ -56,7 +63,7 @@ interface MonitoringRun {
   error: string | null;
 }
 
-type Tab = "description" | "script" | "positions" | "analysis" | "notes";
+type Tab = "description" | "script" | "positions" | "analysis" | "notes" | "skills";
 
 function formatShares(shares: string | number): string {
   const n = typeof shares === "string" ? parseFloat(shares) : shares;
@@ -339,6 +346,7 @@ export default function StrategyDetailPage() {
     { key: "script", label: "原始脚本" },
     { key: "analysis", label: "最近分析" },
     { key: "notes", label: "笔记" },
+    { key: "skills", label: "技能" },
   ];
 
   return (
@@ -750,6 +758,8 @@ export default function StrategyDetailPage() {
 
       {tab === "notes" && <NotesPanel strategyId={id} />}
 
+      {tab === "skills" && <SkillsPanel strategyId={id} />}
+
       {tab === "analysis" && (
         <div className="space-y-3">
           {runs.length === 0 && (
@@ -866,6 +876,217 @@ function NotesPanel({ strategyId }: { strategyId: string }) {
           onSaved={refresh}
         />
       )}
+    </div>
+  );
+}
+
+interface SkillSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  source: string | null;
+  updatedAt: string;
+}
+
+function SkillsPanel({ strategyId }: { strategyId: string }) {
+  const [allSkills, setAllSkills] = useState<SkillSummary[]>([]);
+  const [associatedIds, setAssociatedIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [draftIds, setDraftIds] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [catalogRes, currentRes] = await Promise.all([
+        fetch("/api/skills"),
+        fetch(`/api/strategies/${strategyId}/skills`),
+      ]);
+      const catalog = (await catalogRes.json()) as SkillSummary[];
+      const current = (await currentRes.json()) as { skillIds: string[] };
+      setAllSkills(Array.isArray(catalog) ? catalog : []);
+      setAssociatedIds(Array.isArray(current?.skillIds) ? current.skillIds : []);
+    } finally {
+      setLoading(false);
+    }
+  }, [strategyId]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const skillById = new Map(allSkills.map((s) => [s.id, s]));
+  const associated = associatedIds
+    .map((id) => skillById.get(id))
+    .filter((s): s is SkillSummary => Boolean(s));
+
+  function startEdit() {
+    setDraftIds(associatedIds);
+    setError(null);
+    setEditing(true);
+  }
+
+  function cancelEdit() {
+    setEditing(false);
+    setError(null);
+    setDraftIds(associatedIds);
+  }
+
+  function toggle(id: string) {
+    setDraftIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= STRATEGY_SKILLS_MAX) return prev;
+      return [...prev, id];
+    });
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/strategies/${strategyId}/skills`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ skillIds: draftIds }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError((data as { error?: string }).error ?? `保存失败 (${res.status})`);
+        return;
+      }
+      const data = (await res.json()) as { skillIds: string[] };
+      setAssociatedIds(Array.isArray(data?.skillIds) ? data.skillIds : []);
+      setEditing(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return <p className="text-sm text-muted-foreground">加载中...</p>;
+  }
+
+  if (!editing) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            最多关联 {STRATEGY_SKILLS_MAX} 个技能（已关联 {associated.length}）
+          </p>
+          <Button size="sm" variant="outline" onClick={startEdit}>
+            <Edit2 size={14} className="mr-1" /> 编辑关联
+          </Button>
+        </div>
+        {associated.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4">
+            尚未关联任何技能 — 关联技能可让监控分析获得更针对性的方法论指导。
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {associated.map((s) => (
+              <Badge key={s.id} variant="secondary" className="text-sm">
+                <span className="font-medium">{s.name}</span>
+                <span className="ml-1 text-muted-foreground text-xs">
+                  · {categoryLabel(s.category)}
+                </span>
+              </Badge>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Edit mode
+  if (allSkills.length === 0) {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          技能库为空。请先到{" "}
+          <a href="/skills/new" className="underline text-primary">
+            /skills/new
+          </a>{" "}
+          创建技能。
+        </p>
+        <Button size="sm" variant="outline" onClick={cancelEdit}>
+          返回
+        </Button>
+      </div>
+    );
+  }
+
+  const grouped = SKILL_CATEGORIES.map((cat) => ({
+    category: cat as SkillCategory,
+    items: allSkills.filter(
+      (s) => (s.category ?? "other") === cat
+    ),
+  })).filter((g) => g.items.length > 0);
+
+  const atLimit = draftIds.length >= STRATEGY_SKILLS_MAX;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <p className="text-sm">
+          已选 <span className="font-medium">{draftIds.length}</span> /{" "}
+          {STRATEGY_SKILLS_MAX}
+        </p>
+        <div className="flex gap-2">
+          <Button size="sm" onClick={handleSave} disabled={saving}>
+            {saving ? "保存中..." : "保存"}
+          </Button>
+          <Button size="sm" variant="outline" onClick={cancelEdit} disabled={saving}>
+            取消
+          </Button>
+        </div>
+      </div>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <div className="space-y-4">
+        {grouped.map((g) => (
+          <div key={g.category}>
+            <h3 className="text-sm font-medium mb-2 text-muted-foreground">
+              {CATEGORY_LABELS[g.category]}
+            </h3>
+            <div className="space-y-1">
+              {g.items.map((s) => {
+                const checked = draftIds.includes(s.id);
+                const disabled = !checked && atLimit;
+                return (
+                  <label
+                    key={s.id}
+                    className={`flex items-start gap-2 p-2 rounded-md border ${
+                      disabled
+                        ? "opacity-50 cursor-not-allowed"
+                        : "cursor-pointer hover:bg-accent/50"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={checked}
+                      disabled={disabled}
+                      onChange={() => toggle(s.id)}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">{s.name}</p>
+                      {s.description && (
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {s.description}
+                        </p>
+                      )}
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
