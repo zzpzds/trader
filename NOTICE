@@ -1,0 +1,21 @@
+Trader
+======
+
+This project includes seed skill content adapted from the Vibe-Trading project.
+
+Vibe-Trading: https://github.com/Vibe-Trading/Vibe-Trading
+License: MIT (Copyright (c) 2026 Vibe-Trading Contributors)
+
+The seed skill markdown files in `packages/db/seed/skills/` are Chinese-language
+rewrites and adaptations of methodology concepts from the Vibe-Trading skills
+library, tailored to this project's single-user position-monitoring context.
+They are not direct translations of the original English text.
+
+Affected files:
+  - packages/db/seed/skills/candlestick.md
+  - packages/db/seed/skills/risk-checklist.md
+  - packages/db/seed/skills/behavioral-finance.md
+  - packages/db/seed/skills/valuation-basic.md
+
+The file `packages/db/seed/skills/reference-price-management.md` is original to
+this project and is not derived from Vibe-Trading.

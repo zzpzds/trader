@@ -7,6 +7,7 @@ import { runPriceRefreshJob } from "./monitoring/price-refresh-job.js";
 import { ensurePriceSnapshots } from "./monitoring/price-snapshots.js";
 import { isRateLimitError } from "./monitoring/alphavantage-fetch.js";
 import { runNewsJob } from "./news/job.js";
+import { seedSkills } from "./lib/seed-skills.js";
 
 export function createWorker(databaseUrl: string) {
   const boss = new PgBoss({ connectionString: databaseUrl });
@@ -22,6 +23,16 @@ export function createWorker(databaseUrl: string) {
     boss,
     async start() {
       await boss.start();
+
+      // Idempotent skill seeding — failures must not block worker startup.
+      try {
+        const result = await seedSkills(db);
+        console.log(
+          `[worker] seed-skills: inserted=${result.inserted} skipped=${result.skipped} failed=${result.failed}`
+        );
+      } catch (err) {
+        console.error("[worker] seed-skills failed:", err);
+      }
 
       await boss.createQueue("daily-price-refresh");
       await boss.work("daily-price-refresh", async () => {
