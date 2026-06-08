@@ -54,6 +54,12 @@ export interface PositionInfo {
   lots: Array<{ shares: number; costPrice: number; lotDate: string; notes?: string }>;
 }
 
+export interface SkillForAnalysis {
+  id: string;
+  name: string;
+  bodyMd: string;
+}
+
 export function createAnalyzer(client?: Anthropic) {
   const cfg = getAnthropicConfig("MONITORING");
   const anthropic = client ?? new Anthropic({
@@ -66,7 +72,8 @@ export function createAnalyzer(client?: Anthropic) {
     strategyContent: string,
     positions: PositionInfo[],
     prices: Record<string, { latest: number; bars: Array<{ date: string; close: number }> }>,
-    memories: RelevantMemory[] = []
+    memories: RelevantMemory[] = [],
+    skills: SkillForAnalysis[] = []
   ): Promise<AnalysisResult> {
     const memoriesBlock = memories.length === 0
       ? ""
@@ -76,6 +83,12 @@ export function createAnalyzer(client?: Anthropic) {
             return `- [${tags}] ${m.title}：${m.contentPreview}`;
           })
           .join("\n")}\n\n`;
+
+    const skillsBlock = skills.length === 0
+      ? ""
+      : `## 可用方法论\n\n${skills
+          .map((s) => `### ${s.name}\n${s.bodyMd}`)
+          .join("\n\n---\n\n")}\n\n`;
 
     const positionSummary = positions
       .map((p) => {
@@ -103,7 +116,7 @@ export function createAnalyzer(client?: Anthropic) {
           role: "user",
           content: `你是一位严格按规则行事的交易策略分析师。基于下方策略 + 持仓 + 行情，判断今天是否触发了策略规则，并产出**简短**的中文分析。
 
-${memoriesBlock}## 策略：${strategyName}
+${skillsBlock}${memoriesBlock}## 策略：${strategyName}
 
 ${strategyContent}
 

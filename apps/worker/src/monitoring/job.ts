@@ -1,4 +1,5 @@
 import { eq, and, asc, gte, inArray } from "drizzle-orm";
+import { createHash } from "node:crypto";
 import {
   strategies,
   positions,
@@ -6,9 +7,11 @@ import {
   monitoringRuns,
   notifications,
   priceSnapshots,
+  skills,
+  strategySkills,
 } from "@trader/db";
 import { fetchPrices, type FetchResult } from "./alphavantage-fetch.js";
-import { createAnalyzer, type PositionInfo } from "./analyze.js";
+import { createAnalyzer, type PositionInfo, type SkillForAnalysis } from "./analyze.js";
 import { loadRelevantMemories } from "./load-memories.js";
 import type { drizzle } from "drizzle-orm/postgres-js";
 import type * as schema from "@trader/db";
@@ -160,6 +163,18 @@ async function readSnapshotsForStrategy(
   return grouped;
 }
 
+async function loadSkillsForStrategy(
+  db: DbType,
+  strategyId: string
+): Promise<SkillForAnalysis[]> {
+  const rows = await db
+    .select({ id: skills.id, name: skills.name, bodyMd: skills.bodyMd })
+    .from(strategySkills)
+    .innerJoin(skills, eq(strategySkills.skillId, skills.id))
+    .where(eq(strategySkills.strategyId, strategyId));
+  return rows;
+}
+
 export async function processStrategy(
   db: DbType,
   strategy: StrategyWithLots,
@@ -230,16 +245,32 @@ export async function processStrategy(
       };
     });
 
+    const loadedSkills = await loadSkillsForStrategy(db, strategy.id);
+
     const analysis = await withRetry(
       async () => {
         const symbols = strategy.positions.map((p) => p.symbol);
         const relevantMemories = await loadRelevantMemories(db, strategy.id, symbols);
-        return analyze(strategy.name, strategy.content, positionInfos, prices, relevantMemories);
+        return analyze(
+          strategy.name,
+          strategy.content,
+          positionInfos,
+          prices,
+          relevantMemories,
+          loadedSkills
+        );
       },
       ANALYZE_MAX_ATTEMPTS,
       ANALYZE_RETRY_BASE_MS,
       `analyze(${strategy.name})`
     );
+
+    const skillSnapshot = loadedSkills.map((s) => ({
+      id: s.id,
+      name: s.name,
+      body_md_hash: createHash("sha256").update(s.bodyMd).digest("hex"),
+      body_md_preview: s.bodyMd.slice(0, 500),
+    }));
 
     await db
       .update(monitoringRuns)
@@ -247,6 +278,7 @@ export async function processStrategy(
         status: "completed",
         analysis: analysis.analysis,
         hasActionItems: analysis.hasActionItems,
+        skillSnapshot,
       })
       .where(eq(monitoringRuns.id, run.id));
 

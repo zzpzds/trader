@@ -27,14 +27,27 @@ vi.mock("@trader/db", () => ({
   monitoringRuns: {},
   notifications: {},
   priceSnapshots: { symbol: {}, date: {} },
+  skills: { id: {}, name: {}, bodyMd: {} },
+  strategySkills: { strategyId: {}, skillId: {} },
   eq: vi.fn(),
   and: vi.fn(),
 }));
 
-function makeSelect(rows: any[] = []) {
-  const orderBy = vi.fn().mockResolvedValue(rows);
-  const where = vi.fn().mockReturnValue({ orderBy });
-  const from = vi.fn().mockReturnValue({ where, orderBy });
+// Builds a `select(...).from(...).where(...).orderBy(...)` chain that resolves to `priceRows`,
+// while also supporting `select(...).from(...).innerJoin(...).where(...)` (for skills query)
+// resolving to `skillRows`.
+function makeSelect(priceRows: any[] = [], skillRows: any[] = []) {
+  const orderBy = vi.fn().mockResolvedValue(priceRows);
+  // For the price-snapshot query: from -> where -> orderBy
+  const priceWhere = vi.fn().mockReturnValue({ orderBy });
+  // For the skills query: from -> innerJoin -> where (terminal, awaited)
+  const skillWhere = vi.fn().mockResolvedValue(skillRows);
+  const innerJoin = vi.fn().mockReturnValue({ where: skillWhere });
+  const from = vi.fn().mockReturnValue({
+    where: priceWhere,
+    orderBy,
+    innerJoin,
+  });
   return vi.fn().mockReturnValue({ from });
 }
 
@@ -199,5 +212,126 @@ describe("runMonitoringJob", () => {
     await runMonitoringJob(mockDb);
 
     expect(mockFetchPrices).toHaveBeenCalledWith(["AAPL"], "30d");
+  });
+
+  it("calls analyze with empty skills and writes empty skillSnapshot when strategy has no skills", async () => {
+    mockAnalyze.mockReset();
+    mockAnalyze.mockResolvedValueOnce({
+      analysis: "no actions",
+      hasActionItems: false,
+      referencePriceUpdates: [],
+    });
+
+    const setMock = vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue({}) });
+    const updateMock = vi.fn().mockReturnValue({ set: setMock });
+    const insertReturning = vi.fn().mockResolvedValue([{ id: "run-skills-empty" }]);
+    const insertMock = vi.fn().mockReturnValue({
+      values: vi.fn().mockReturnValue({ returning: insertReturning }),
+    });
+
+    const mockDb = {
+      query: {
+        strategies: {
+          findMany: vi.fn().mockResolvedValue([
+            { id: "s-no-skill", name: "T-no-skill", content: "c", symbols: ["AAPL"], analysisWindowDays: 30 },
+          ]),
+        },
+        positions: {
+          findMany: vi.fn().mockResolvedValue([
+            {
+              id: "p-no-skill",
+              symbol: "AAPL",
+              referencePrice: null,
+              positionLots: [{ shares: "1", costPrice: "150", lotDate: "2025-01-01", notes: null }],
+            },
+          ]),
+        },
+      },
+      insert: insertMock,
+      update: updateMock,
+      select: makeSelect(
+        [{ symbol: "AAPL", date: "2025-05-01", open: "150", high: "150", low: "150", close: "150", volume: 0n }],
+        [] // skill rows: empty
+      ),
+    } as any;
+
+    await runMonitoringJob(mockDb);
+
+    // analyze called with skills (6th arg) === []
+    expect(mockAnalyze).toHaveBeenCalled();
+    const analyzeArgs = mockAnalyze.mock.calls[0];
+    expect(analyzeArgs[5]).toEqual([]);
+
+    // monitoringRuns.set payload includes skillSnapshot: []
+    const completedCall = setMock.mock.calls.find((call: any[]) => call[0]?.status === "completed");
+    expect(completedCall).toBeDefined();
+    expect(completedCall![0].skillSnapshot).toEqual([]);
+  });
+
+  it("loads associated skills, passes them to analyze, and writes hash+preview snapshots", async () => {
+    mockAnalyze.mockReset();
+    mockAnalyze.mockResolvedValueOnce({
+      analysis: "ok",
+      hasActionItems: false,
+      referencePriceUpdates: [],
+    });
+
+    const setMock = vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue({}) });
+    const updateMock = vi.fn().mockReturnValue({ set: setMock });
+    const insertReturning = vi.fn().mockResolvedValue([{ id: "run-with-skills" }]);
+    const insertMock = vi.fn().mockReturnValue({
+      values: vi.fn().mockReturnValue({ returning: insertReturning }),
+    });
+
+    const skillRows = [
+      { id: "skill-a", name: "candlestick", bodyMd: "# K线\n方法论..." },
+      { id: "skill-b", name: "risk", bodyMd: "# 风险..." },
+    ];
+
+    const mockDb = {
+      query: {
+        strategies: {
+          findMany: vi.fn().mockResolvedValue([
+            { id: "s-with-skills", name: "T-skills", content: "c", symbols: ["AAPL"], analysisWindowDays: 30 },
+          ]),
+        },
+        positions: {
+          findMany: vi.fn().mockResolvedValue([
+            {
+              id: "p-with-skills",
+              symbol: "AAPL",
+              referencePrice: null,
+              positionLots: [{ shares: "1", costPrice: "150", lotDate: "2025-01-01", notes: null }],
+            },
+          ]),
+        },
+      },
+      insert: insertMock,
+      update: updateMock,
+      select: makeSelect(
+        [{ symbol: "AAPL", date: "2025-05-01", open: "150", high: "150", low: "150", close: "150", volume: 0n }],
+        skillRows
+      ),
+    } as any;
+
+    await runMonitoringJob(mockDb);
+
+    // analyze called with the loaded skills
+    expect(mockAnalyze).toHaveBeenCalled();
+    const analyzeArgs = mockAnalyze.mock.calls[0];
+    expect(analyzeArgs[5]).toEqual(skillRows);
+
+    // Compute expected sha256 hashes deterministically
+    const { createHash } = await import("node:crypto");
+    const expectedSnapshot = skillRows.map((s) => ({
+      id: s.id,
+      name: s.name,
+      body_md_hash: createHash("sha256").update(s.bodyMd).digest("hex"),
+      body_md_preview: s.bodyMd.slice(0, 500),
+    }));
+
+    const completedCall = setMock.mock.calls.find((call: any[]) => call[0]?.status === "completed");
+    expect(completedCall).toBeDefined();
+    expect(completedCall![0].skillSnapshot).toEqual(expectedSnapshot);
   });
 });

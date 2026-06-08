@@ -46,11 +46,11 @@
 
 ## 7. analyze.ts 注入 skill
 
-- [ ] 7.1 在 `apps/worker/src/monitoring/analyze.ts` 的 `analyzeStrategy` 函数签名增加可选参数 `skills: Array<{ id, name, body_md }>`
-- [ ] 7.2 实现 `skillsBlock` 拼接逻辑：空数组 → 空字符串；非空 → `## 可用方法论\n\n### {name}\n{body_md}\n\n---\n\n...`
-- [ ] 7.3 修改 prompt 模板：在 `memoriesBlock` 之前插入 `skillsBlock`
-- [ ] 7.4 在 `apps/worker/src/monitoring/job.ts` 中：处理每个策略时查询 `strategy_skills` 关联，加载 skill body 后传入 analyzer
-- [ ] 7.5 落库 `monitoring_runs.skill_snapshot`：完成时写入 `[{ id, name, body_md_hash (sha256), body_md_preview (前 500 字符) }]`，未关联 skill 时写入空数组 `[]`
+- [x] 7.1 在 `apps/worker/src/monitoring/analyze.ts` 的 `analyzeStrategy` 函数签名增加可选参数 `skills: Array<{ id, name, body_md }>`
+- [x] 7.2 实现 `skillsBlock` 拼接逻辑：空数组 → 空字符串；非空 → `## 可用方法论\n\n### {name}\n{body_md}\n\n---\n\n...`
+- [x] 7.3 修改 prompt 模板：在 `memoriesBlock` 之前插入 `skillsBlock`
+- [x] 7.4 在 `apps/worker/src/monitoring/job.ts` 中：处理每个策略时查询 `strategy_skills` 关联，加载 skill body 后传入 analyzer
+- [x] 7.5 落库 `monitoring_runs.skill_snapshot`：完成时写入 `[{ id, name, body_md_hash (sha256), body_md_preview (前 500 字符) }]`，未关联 skill 时写入空数组 `[]`
 
 ## 8. 测试
 
