@@ -31,11 +31,11 @@
 
 ## 5. /skills 页面
 
-- [ ] 5.1 创建 `apps/web/app/skills/page.tsx`：列表页，按 category 分组（预设 6 类），显示 name / description / source 标签
-- [ ] 5.2 创建 `apps/web/app/skills/new/page.tsx` 与 `apps/web/app/skills/[id]/edit/page.tsx`：编辑器（name / description / category 下拉 / body_md textarea + react-markdown 实时预览 / 字符计数）
-- [ ] 5.3 编辑页：当 skill 被 ≥ 1 策略关联时显示警告条
-- [ ] 5.4 删除按钮带二次确认对话框（显示关联策略数）
-- [ ] 5.5 把 `/skills` 加入主导航（参考 strategies/memories 入口）
+- [x] 5.1 创建 `apps/web/app/skills/page.tsx`：列表页，按 category 分组（预设 6 类），显示 name / description / source 标签
+- [x] 5.2 创建 `apps/web/app/skills/new/page.tsx` 与 `apps/web/app/skills/[id]/edit/page.tsx`：编辑器（name / description / category 下拉 / body_md textarea + react-markdown 实时预览 / 字符计数）
+- [x] 5.3 编辑页：当 skill 被 ≥ 1 策略关联时显示警告条
+- [x] 5.4 删除按钮带二次确认对话框（显示关联策略数）
+- [x] 5.5 把 `/skills` 加入主导航（参考 strategies/memories 入口）
 
 ## 6. 策略详情页关联 UI
 

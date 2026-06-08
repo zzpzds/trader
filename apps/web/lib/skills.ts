@@ -1,6 +1,21 @@
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { skills, strategySkills, type SkillRow } from "@trader/db";
+import { skills, strategies, strategySkills, type SkillRow } from "@trader/db";
+import {
+  SKILL_BODY_MAX,
+  SKILL_CATEGORIES,
+  STRATEGY_SKILLS_MAX,
+  type SkillCategory,
+} from "@/lib/skills-ui";
+
+// Re-export the client-safe constants so existing imports from "@/lib/skills"
+// continue to work for server-side code.
+export {
+  SKILL_BODY_MAX,
+  SKILL_CATEGORIES,
+  STRATEGY_SKILLS_MAX,
+  type SkillCategory,
+};
 
 // Postgres error codes (https://www.postgresql.org/docs/current/errcodes-appendix.html)
 export const PG_ERROR_CODES = {
@@ -21,18 +36,6 @@ export function isUniqueViolation(err: unknown): boolean {
 export function isFkViolation(err: unknown): boolean {
   return getPgErrorCode(err) === PG_ERROR_CODES.FK_VIOLATION;
 }
-
-export const SKILL_BODY_MAX = 6000;
-export const STRATEGY_SKILLS_MAX = 3;
-export const SKILL_CATEGORIES = [
-  "pattern",
-  "risk",
-  "valuation",
-  "behavioral",
-  "macro",
-  "other",
-] as const;
-export type SkillCategory = (typeof SKILL_CATEGORIES)[number];
 
 const VALID_CATEGORIES = new Set<string>(SKILL_CATEGORIES);
 
@@ -263,6 +266,29 @@ export async function getStrategySkillIds(
     columns: { skillId: true },
   });
   return rows.map((r) => r.skillId);
+}
+
+export async function getSkillUsage(skillId: string): Promise<{
+  associatedStrategyCount: number;
+  strategyNames: string[];
+}> {
+  const links = await db.query.strategySkills.findMany({
+    where: eq(strategySkills.skillId, skillId),
+    columns: { strategyId: true },
+  });
+  const strategyIds = links.map((l) => l.strategyId);
+  if (strategyIds.length === 0) {
+    return { associatedStrategyCount: 0, strategyNames: [] };
+  }
+  const rows = await db.query.strategies.findMany({
+    where: inArray(strategies.id, strategyIds),
+    columns: { name: true },
+    orderBy: (s) => [asc(s.name)],
+  });
+  return {
+    associatedStrategyCount: rows.length,
+    strategyNames: rows.map((r) => r.name),
+  };
 }
 
 export async function setStrategySkills(
