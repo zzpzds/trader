@@ -23,11 +23,11 @@
 
 ## 4. Skills CRUD API
 
-- [ ] 4.1 创建 `apps/web/lib/skills.ts`：实现 `listSkills`、`getSkill`、`createSkill`、`updateSkill`、`deleteSkill`、`setStrategySkills` 数据访问函数；body 长度校验 ≤ 6000、关联数 ≤ 3 在此层
-- [ ] 4.2 创建 `apps/web/app/api/skills/route.ts`：GET（列表，不含 body_md）+ POST（新建）
-- [ ] 4.3 创建 `apps/web/app/api/skills/[id]/route.ts`：GET（含 body_md）+ PATCH + DELETE
-- [ ] 4.4 创建 `apps/web/app/api/strategies/[id]/skills/route.ts`：PUT（整体替换关联，校验数量 ≤ 3）
-- [ ] 4.5 在 `apps/web/lib/__tests__/skills.test.ts` 写单元测试：长度校验、关联数量校验、name 唯一性、CASCADE 行为
+- [x] 4.1 创建 `apps/web/lib/skills.ts`：实现 `listSkills`、`getSkill`、`createSkill`、`updateSkill`、`deleteSkill`、`setStrategySkills` 数据访问函数；body 长度校验 ≤ 6000、关联数 ≤ 3 在此层
+- [x] 4.2 创建 `apps/web/app/api/skills/route.ts`：GET（列表，不含 body_md）+ POST（新建）
+- [x] 4.3 创建 `apps/web/app/api/skills/[id]/route.ts`：GET（含 body_md）+ PATCH + DELETE
+- [x] 4.4 创建 `apps/web/app/api/strategies/[id]/skills/route.ts`：PUT（整体替换关联，校验数量 ≤ 3）
+- [x] 4.5 在 `apps/web/lib/__tests__/skills.test.ts` 写单元测试：长度校验、关联数量校验、name 唯一性、CASCADE 行为
 
 ## 5. /skills 页面
 
