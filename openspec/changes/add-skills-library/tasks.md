@@ -1,25 +1,25 @@
 ## 1. 数据库 schema
 
-- [ ] 1.1 在 `packages/db/src/schema.ts` 新增 `skills` 表（`id` uuid pk、`name` text unique、`description` text、`category` text、`body_md` text、`source` text default `'user'`、`created_at`、`updated_at`）
-- [ ] 1.2 新增 `strategy_skills` 关联表（`strategy_id` fk、`skill_id` fk ON DELETE CASCADE、复合主键）
-- [ ] 1.3 在 `monitoring_runs` 表追加 `skill_snapshot` jsonb 列（nullable，默认 null）
-- [ ] 1.4 添加 `strategiesRelations` / `skillsRelations` / `strategySkillsRelations` 三个 Drizzle relations
-- [ ] 1.5 生成新 migration 文件 `packages/db/drizzle/<next>_add_skills.sql` 并 review SQL
-- [ ] 1.6 在 `packages/db/src/schema.test.ts` 补充表存在性 + 关联性的最小断言
-- [ ] 1.7 本地跑一次 `pnpm --filter @trader/db push` 或 `migrate` 确认 migration 通过
+- [x] 1.1 `packages/db/src/schema.ts` 新增 `skills` 表（项目惯例 `text` id 而非 uuid 类型）— commit `72e004c`
+- [x] 1.2 新增 `strategy_skills` 关联表，FK ON DELETE CASCADE，复合主键 — commit `72e004c`
+- [x] 1.3 `monitoring_runs.skill_snapshot` jsonb nullable — commit `72e004c`；type 提取为 `SkillSnapshot` — commit `0b62479`
+- [x] 1.4 三个 Drizzle relations 添加，`strategiesRelations` 增量加 `skills: many(strategySkills)` — commit `72e004c`
+- [x] 1.5 migration `packages/db/drizzle/0001_small_risque.sql` 生成（含本次新增 + 历史 drift catch-up）— commit `72e004c`
+- [x] 1.6 schema.test.ts 增加 8 条断言覆盖 skills/strategy_skills/skill_snapshot/relation — commit `72e004c`
+- [ ] 1.7 本地跑 migration 确认（**留给用户**：dev DB 已有 drift，需 controller 在 TTY 下交互运行 `npm run db:push -w @trader/db`）
 
 ## 2. Seed 资源准备
 
-- [ ] 2.1 在仓库根目录创建 `NOTICE` 文件，声明 vibe-trading MIT 来源 + 链接
-- [ ] 2.2 创建 `packages/db/seed/skills/` 目录（注：原计划 `apps/web/seed/`，但 Docker 仅 COPY `packages/db` 到 worker 镜像，故落到此处）
-- [ ] 2.3 编写 5 个中文 seed markdown：`candlestick.md`、`risk-checklist.md`、`reference-price-management.md`、`behavioral-finance.md`、`valuation-basic.md`，每个 ≤ 6000 字符，frontmatter 含 `name` / `description` / `category`
-- [ ] 2.4 内容参考 vibe-trading 对应 skill 但用中文重写并精简到本项目语境（不直接复制英文）
+- [x] 2.1 根目录 `NOTICE` 文件 — commit `31c63c9`
+- [x] 2.2 `packages/db/seed/skills/` 目录（路径调整：原计划 `apps/web/seed/`，但 Docker 仅 COPY `packages/db` 到 worker 镜像，故落到此处）— commit `31c63c9`
+- [x] 2.3 5 个中文 seed markdown，每个 1700–2000 字符 — commit `31c63c9`
+- [x] 2.4 内容中文重写，非翻译，适配本项目 reference_price/monitoring 语境 — commit `31c63c9`
 
 ## 3. Seed 执行脚本
 
-- [ ] 3.1 在 `apps/worker/src/lib/seed-skills.ts` 实现 idempotent seed 函数：扫描 `packages/db/seed/skills/*.md`、解析 frontmatter + body、按 `name` 检查存在性、不存在则插入（`source = 'seed'`）
-- [ ] 3.2 在 `apps/worker/src/index.ts` 启动流程中调用 seed 函数，错误只记 log 不阻塞
-- [ ] 3.3 在 `apps/worker/src/lib/__tests__/seed-skills.test.ts` 写测试：首次插入、重复跳过、单条失败不影响其他
+- [x] 3.1 `apps/worker/src/lib/seed-skills.ts` idempotent seed 函数（手写 frontmatter parser，无新依赖）— commit `31c63c9`
+- [x] 3.2 worker 启动流程调用 seed（位置调整：`apps/worker/src/worker.ts` 而非 `index.ts`，因 db 在 worker.ts 构造）— commit `31c63c9`
+- [x] 3.3 `seed-skills.test.ts` 10 个测试覆盖 parser + 三个 spec 场景 — commit `31c63c9`
 
 ## 4. Skills CRUD API
 
