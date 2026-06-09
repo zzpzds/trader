@@ -48,6 +48,6 @@
 
 ## 7. 收尾
 
-- [ ] 7.1 跑全量测试：db / worker / web 全绿
-- [ ] 7.2 `openspec validate enhance-skills-library-phase-2 --strict` 通过
-- [ ] 7.3 README 特色表更新（在 Phase 1 那行后追加一句"+ LLM 推荐 + 导入向导"，或单独一行——视觉一致性即可）
+- [x] 7.1 跑全量测试：db 26/26、worker 88/88、web 203/203 全绿
+- [x] 7.2 `openspec validate enhance-skills-library-phase-2 --strict` 通过
+- [x] 7.3 README 特色表 🧩 那行追加 "LLM 顺手推荐 + 仓库 seed 手动重新导入"
