@@ -539,6 +539,25 @@ export declare const monitoringRuns: import("drizzle-orm/pg-core").PgTableWithCo
         }, {}, {
             $type: SkillSnapshot[];
         }>;
+        suggestedSkills: import("drizzle-orm/pg-core").PgColumn<{
+            name: "suggested_skills";
+            tableName: "monitoring_runs";
+            dataType: "json";
+            columnType: "PgJsonb";
+            data: string[];
+            driverParam: unknown;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            $type: string[];
+        }>;
         error: import("drizzle-orm/pg-core").PgColumn<{
             name: "error";
             tableName: "monitoring_runs";

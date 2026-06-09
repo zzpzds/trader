@@ -221,6 +221,13 @@ describe("skills + strategy_skills tables", () => {
     expect(col.notNull).toBe(false);
   });
 
+  it("monitoringRuns has suggestedSkills column (nullable jsonb)", () => {
+    const columns = Object.keys(monitoringRuns);
+    expect(columns).toContain("suggestedSkills");
+    const col = (monitoringRuns as any).suggestedSkills;
+    expect(col.notNull).toBeFalsy();
+  });
+
   it("strategiesRelations exposes skills relation via strategy_skills", () => {
     // drizzle wraps each relation entry via `.withFieldName(key)`; provide stubs
     // that return an object with that method so the builder doesn't blow up.

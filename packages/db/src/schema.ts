@@ -84,6 +84,7 @@ export const monitoringRuns = pgTable(
     hasActionItems: boolean("has_action_items"),
     prices: jsonb("prices").$type<Record<string, number>>(),
     skillSnapshot: jsonb("skill_snapshot").$type<SkillSnapshot[]>(),
+    suggestedSkills: jsonb("suggested_skills").$type<string[]>(),
     error: text("error"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },

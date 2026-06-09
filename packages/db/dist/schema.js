@@ -63,6 +63,7 @@ exports.monitoringRuns = (0, pg_core_1.pgTable)("monitoring_runs", {
     hasActionItems: (0, pg_core_1.boolean)("has_action_items"),
     prices: (0, pg_core_1.jsonb)("prices").$type(),
     skillSnapshot: (0, pg_core_1.jsonb)("skill_snapshot").$type(),
+    suggestedSkills: (0, pg_core_1.jsonb)("suggested_skills").$type(),
     error: (0, pg_core_1.text)("error"),
     createdAt: (0, pg_core_1.timestamp)("created_at").notNull().defaultNow(),
 }, (t) => [(0, pg_core_1.index)("monitoring_runs_strategy_date_idx").on(t.strategyId, t.runDate)]);

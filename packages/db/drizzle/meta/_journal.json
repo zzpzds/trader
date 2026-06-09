@@ -15,6 +15,13 @@
       "when": 1780908751959,
       "tag": "0001_small_risque",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781003776664,
+      "tag": "0002_cute_silhouette",
+      "breakpoints": true
     }
   ]
 }

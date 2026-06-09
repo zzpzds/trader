@@ -219,6 +219,12 @@ const schema_1 = require("./schema");
         const col = schema_1.monitoringRuns.skillSnapshot;
         (0, vitest_1.expect)(col.notNull).toBe(false);
     });
+    (0, vitest_1.it)("monitoringRuns has suggestedSkills column (nullable jsonb)", () => {
+        const columns = Object.keys(schema_1.monitoringRuns);
+        (0, vitest_1.expect)(columns).toContain("suggestedSkills");
+        const col = schema_1.monitoringRuns.suggestedSkills;
+        (0, vitest_1.expect)(col.notNull).toBeFalsy();
+    });
     (0, vitest_1.it)("strategiesRelations exposes skills relation via strategy_skills", () => {
         // drizzle wraps each relation entry via `.withFieldName(key)`; provide stubs
         // that return an object with that method so the builder doesn't blow up.

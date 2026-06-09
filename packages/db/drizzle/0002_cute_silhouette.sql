@@ -1,0 +1,1 @@
+ALTER TABLE "monitoring_runs" ADD COLUMN "suggested_skills" jsonb;
