@@ -54,19 +54,19 @@
 
 ## 8. 测试
 
-- [ ] 8.1 扩展 `apps/worker/src/monitoring/__tests__/analyze.test.ts`：断言 skills 参数为空时 prompt 不含「可用方法论」、非空时包含每条 skill 的 body
-- [ ] 8.2 扩展 `apps/worker/src/monitoring/__tests__/job.test.ts`（如不存在则新建）：断言 monitoring_runs 写入 skill_snapshot 字段、空关联时为空数组
-- [ ] 8.3 跑全量测试 `pnpm test` 确保现有 monitoring / strategies 测试无回归
+- [x] 8.1 扩展 `apps/worker/src/monitoring/__tests__/analyze.test.ts`：断言 skills 参数为空时 prompt 不含「可用方法论」、非空时包含每条 skill 的 body
+- [x] 8.2 扩展 `apps/worker/src/monitoring/__tests__/job.test.ts`：断言 monitoring_runs 写入 skill_snapshot 字段、空关联时为空数组
+- [x] 8.3 跑全量测试 `npm test --workspaces`：db 25/25、worker 81/81、web 178/178 全绿
 
 ## 9. 文档
 
-- [ ] 9.1 在 `apps/web/app/skills/page.tsx` 顶部加简短说明「skill 是可挂到策略上的方法论文档，监控分析时会注入到 LLM prompt」
-- [ ] 9.2 在 README 截图区或「特色」表加一行「🧩 技能库 — 给策略挂载方法论文档增强 LLM 分析」（视觉一致性，无需新截图）
-- [ ] 9.3 验证 `openspec validate add-skills-library --strict` 通过
+- [x] 9.1 在 `apps/web/app/skills/page.tsx` 顶部加简短说明（已在 Task 5 实施时一并完成）
+- [x] 9.2 在 README「特色」表加「🧩 技能库」行
+- [x] 9.3 验证 `openspec validate add-skills-library --strict` 通过
 
 ## 10. 部署校验
 
-- [ ] 10.1 本地 `docker-compose up -d` 重建 web + worker，确认 migration 跑通、seed 写入 5 条 skill
-- [ ] 10.2 在 web 上手动建一条 user skill、关联到某个策略
-- [ ] 10.3 触发一次 manual monitoring，检查 monitoring_runs.skill_snapshot 字段写入正确
-- [ ] 10.4 查看监控报告内容，确认 LLM 输出体现了 skill 注入的方法论指导
+- [ ] 10.1 本地 `docker-compose up -d` 重建 web + worker，确认 migration 跑通、seed 写入 5 条 skill（**留给用户**：dev DB 已有 drift，需要在干净环境验证）
+- [ ] 10.2 在 web 上手动建一条 user skill、关联到某个策略（**留给用户**）
+- [ ] 10.3 触发一次 manual monitoring，检查 monitoring_runs.skill_snapshot 字段写入正确（**留给用户**）
+- [ ] 10.4 查看监控报告内容，确认 LLM 输出体现了 skill 注入的方法论指导（**留给用户**）
