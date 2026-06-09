@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import {
   ValidationError,
+  getStrategyLatestSuggestedSkills,
   getStrategySkillIds,
   isFkViolation,
   setStrategySkills,
@@ -12,8 +13,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const skillIds = await getStrategySkillIds(id);
-  return Response.json({ skillIds });
+  const [skillIds, latestSuggestedSkills] = await Promise.all([
+    getStrategySkillIds(id),
+    getStrategyLatestSuggestedSkills(id),
+  ]);
+  return Response.json({ skillIds, latestSuggestedSkills });
 }
 
 export async function PUT(

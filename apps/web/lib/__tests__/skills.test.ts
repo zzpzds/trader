@@ -11,6 +11,7 @@ const { mockTx, mockDb } = vi.hoisted(() => {
     query: {
       skills: { findFirst: vi.fn(), findMany: vi.fn() },
       strategySkills: { findMany: vi.fn() },
+      monitoringRuns: { findFirst: vi.fn() },
     },
     insert: vi.fn(),
     update: vi.fn(),
@@ -32,6 +33,7 @@ import {
   ValidationError,
   createSkill,
   getSeedManifest,
+  getStrategyLatestSuggestedSkills,
   importSeedSkill,
   setStrategySkills,
   validateSkillBody,
@@ -40,6 +42,7 @@ import {
   validateSkillName,
   validateSkillDescription,
 } from "../skills";
+import { mergeWithCap } from "../skills-ui";
 
 describe("validateSkillBody", () => {
   it("accepts a normal markdown body", () => {
@@ -512,6 +515,89 @@ describe("importSeedSkill", () => {
     await expect(
       importSeedSkill({ name: "candlestick", mode: "create" }, fs)
     ).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe("getStrategyLatestSuggestedSkills", () => {
+  beforeEach(() => {
+    mockDb.query.monitoringRuns.findFirst.mockReset();
+    mockDb.query.skills.findMany.mockReset();
+  });
+
+  it("returns [] when no completed monitoring run exists", async () => {
+    mockDb.query.monitoringRuns.findFirst.mockResolvedValueOnce(undefined);
+    const result = await getStrategyLatestSuggestedSkills("strat-1");
+    expect(result).toEqual([]);
+    expect(mockDb.query.skills.findMany).not.toHaveBeenCalled();
+  });
+
+  it("returns [] when latest completed run has no suggestedSkills", async () => {
+    mockDb.query.monitoringRuns.findFirst.mockResolvedValueOnce({
+      suggestedSkills: null,
+    });
+    const result = await getStrategyLatestSuggestedSkills("strat-1");
+    expect(result).toEqual([]);
+    expect(mockDb.query.skills.findMany).not.toHaveBeenCalled();
+  });
+
+  it("returns [] when suggestedSkills is an empty array", async () => {
+    mockDb.query.monitoringRuns.findFirst.mockResolvedValueOnce({
+      suggestedSkills: [],
+    });
+    const result = await getStrategyLatestSuggestedSkills("strat-1");
+    expect(result).toEqual([]);
+    expect(mockDb.query.skills.findMany).not.toHaveBeenCalled();
+  });
+
+  it("preserves the LLM order when all names exist in skills table", async () => {
+    mockDb.query.monitoringRuns.findFirst.mockResolvedValueOnce({
+      suggestedSkills: ["risk-checklist", "breakout-pattern", "dcf"],
+    });
+    mockDb.query.skills.findMany.mockResolvedValueOnce([
+      { name: "breakout-pattern" },
+      { name: "dcf" },
+      { name: "risk-checklist" },
+    ]);
+    const result = await getStrategyLatestSuggestedSkills("strat-1");
+    expect(result).toEqual(["risk-checklist", "breakout-pattern", "dcf"]);
+  });
+
+  it("filters out names that no longer exist in skills table", async () => {
+    mockDb.query.monitoringRuns.findFirst.mockResolvedValueOnce({
+      suggestedSkills: ["risk-checklist", "deleted-skill", "dcf"],
+    });
+    mockDb.query.skills.findMany.mockResolvedValueOnce([
+      { name: "risk-checklist" },
+      { name: "dcf" },
+    ]);
+    const result = await getStrategyLatestSuggestedSkills("strat-1");
+    expect(result).toEqual(["risk-checklist", "dcf"]);
+  });
+});
+
+describe("mergeWithCap", () => {
+  it("returns currentIds unchanged when suggestedIds are empty", () => {
+    expect(mergeWithCap(["a", "b"], [], 3)).toEqual(["a", "b"]);
+  });
+
+  it("appends new suggestions in order until cap is reached", () => {
+    expect(mergeWithCap(["a"], ["b", "c", "d"], 3)).toEqual(["a", "b", "c"]);
+  });
+
+  it("does not duplicate suggestions already in currentIds", () => {
+    expect(mergeWithCap(["a", "b"], ["b", "c"], 3)).toEqual(["a", "b", "c"]);
+  });
+
+  it("respects the cap when currentIds is already at the limit", () => {
+    expect(mergeWithCap(["a", "b", "c"], ["d"], 3)).toEqual(["a", "b", "c"]);
+  });
+
+  it("truncates currentIds when they exceed the cap (defensive)", () => {
+    expect(mergeWithCap(["a", "b", "c", "d"], ["e"], 3)).toEqual([
+      "a",
+      "b",
+      "c",
+    ]);
   });
 });
 

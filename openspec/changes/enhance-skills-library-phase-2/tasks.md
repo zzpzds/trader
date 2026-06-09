@@ -39,12 +39,12 @@
 
 ## 6. SkillsPanel 推荐 banner
 
-- [ ] 6.1 修改 `GET /api/strategies/[id]/skills` 响应增加 `latestSuggestedSkills: string[]` 字段（来自最新 status='completed' 的 monitoring_run.suggestedSkills；过滤 DB 中已不存在的 name）
-- [ ] 6.2 在 SkillsPanel 顶部 view mode 渲染 banner（仅当过滤已关联后剩余推荐 ≥ 1 时显示）
-- [ ] 6.3 「全部采纳」按钮：合并 + 受 ≤ 3 上限，调用 PUT
-- [ ] 6.4 「挑选」按钮：进入 edit mode 并预先勾选推荐项（受 ≤ 3）
-- [ ] 6.5 「关闭」按钮：本地 state 隐藏 banner，不持久化
-- [ ] 6.6 推荐为空 / 全部已关联 / banner 已关闭 时不渲染
+- [x] 6.1 修改 `GET /api/strategies/[id]/skills` 响应增加 `latestSuggestedSkills: string[]` 字段（来自最新 status='completed' 的 monitoring_run.suggestedSkills；过滤 DB 中已不存在的 name）
+- [x] 6.2 在 SkillsPanel 顶部 view mode 渲染 banner（仅当过滤已关联后剩余推荐 ≥ 1 时显示）
+- [x] 6.3 「全部采纳」按钮：合并 + 受 ≤ 3 上限，调用 PUT
+- [x] 6.4 「挑选」按钮：进入 edit mode 并预先勾选推荐项（受 ≤ 3）
+- [x] 6.5 「关闭」按钮：本地 state 隐藏 banner，不持久化
+- [x] 6.6 推荐为空 / 全部已关联 / banner 已关闭 时不渲染
 
 ## 7. 收尾
 

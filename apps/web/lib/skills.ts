@@ -1,9 +1,10 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
-import { eq, asc, inArray } from "drizzle-orm";
+import { eq, asc, desc, inArray, and } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
+  monitoringRuns,
   skills,
   strategies,
   strategySkills,
@@ -284,6 +285,36 @@ export async function getStrategySkillIds(
     columns: { skillId: true },
   });
   return rows.map((r) => r.skillId);
+}
+
+/**
+ * Returns the LLM-suggested skill names from the most recent completed
+ * monitoring run for `strategyId`, filtered to names that still exist in the
+ * skills table. Order is preserved from the LLM output.
+ *
+ * Returns [] when no completed run exists, when the run has no
+ * suggestedSkills, or when none of the suggested names match a current skill.
+ */
+export async function getStrategyLatestSuggestedSkills(
+  strategyId: string
+): Promise<string[]> {
+  const latest = await db.query.monitoringRuns.findFirst({
+    where: and(
+      eq(monitoringRuns.strategyId, strategyId),
+      eq(monitoringRuns.status, "completed")
+    ),
+    orderBy: desc(monitoringRuns.createdAt),
+    columns: { suggestedSkills: true },
+  });
+  const suggested = (latest?.suggestedSkills ?? []) as string[];
+  if (!Array.isArray(suggested) || suggested.length === 0) return [];
+
+  const existing = await db.query.skills.findMany({
+    where: inArray(skills.name, suggested),
+    columns: { name: true },
+  });
+  const existingSet = new Set(existing.map((r) => r.name));
+  return suggested.filter((name) => existingSet.has(name));
 }
 
 export async function getSkillUsage(skillId: string): Promise<{

@@ -20,6 +20,7 @@ import {
   SKILL_CATEGORIES,
   STRATEGY_SKILLS_MAX,
   categoryLabel,
+  mergeWithCap,
   type SkillCategory,
 } from "@/lib/skills-ui";
 
@@ -892,6 +893,10 @@ interface SkillSummary {
 function SkillsPanel({ strategyId }: { strategyId: string }) {
   const [allSkills, setAllSkills] = useState<SkillSummary[]>([]);
   const [associatedIds, setAssociatedIds] = useState<string[]>([]);
+  const [latestSuggestedSkills, setLatestSuggestedSkills] = useState<string[]>(
+    []
+  );
+  const [bannerDismissed, setBannerDismissed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [draftIds, setDraftIds] = useState<string[]>([]);
@@ -906,9 +911,17 @@ function SkillsPanel({ strategyId }: { strategyId: string }) {
         fetch(`/api/strategies/${strategyId}/skills`),
       ]);
       const catalog = (await catalogRes.json()) as SkillSummary[];
-      const current = (await currentRes.json()) as { skillIds: string[] };
+      const current = (await currentRes.json()) as {
+        skillIds: string[];
+        latestSuggestedSkills?: string[];
+      };
       setAllSkills(Array.isArray(catalog) ? catalog : []);
       setAssociatedIds(Array.isArray(current?.skillIds) ? current.skillIds : []);
+      setLatestSuggestedSkills(
+        Array.isArray(current?.latestSuggestedSkills)
+          ? current.latestSuggestedSkills
+          : []
+      );
     } finally {
       setLoading(false);
     }
@@ -919,14 +932,62 @@ function SkillsPanel({ strategyId }: { strategyId: string }) {
   }, [refresh]);
 
   const skillById = new Map(allSkills.map((s) => [s.id, s]));
+  const skillByName = new Map(allSkills.map((s) => [s.name, s]));
   const associated = associatedIds
     .map((id) => skillById.get(id))
     .filter((s): s is SkillSummary => Boolean(s));
+
+  // Suggestions still relevant: name resolves to an existing skill AND it's
+  // not already associated. Defensive against the catalog being out of sync
+  // with the server-side filter in getStrategyLatestSuggestedSkills.
+  const filteredSuggestions = latestSuggestedSkills.filter((name) => {
+    const skill = skillByName.get(name);
+    if (!skill) return false;
+    return !associatedIds.includes(skill.id);
+  });
+  const suggestionIds = filteredSuggestions
+    .map((name) => skillByName.get(name)?.id)
+    .filter((id): id is string => Boolean(id));
 
   function startEdit() {
     setDraftIds(associatedIds);
     setError(null);
     setEditing(true);
+  }
+
+  function handlePickFromSuggestions() {
+    setDraftIds(mergeWithCap(associatedIds, suggestionIds, STRATEGY_SKILLS_MAX));
+    setError(null);
+    setEditing(true);
+  }
+
+  async function handleAcceptAll() {
+    const merged = mergeWithCap(
+      associatedIds,
+      suggestionIds,
+      STRATEGY_SKILLS_MAX
+    );
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/strategies/${strategyId}/skills`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ skillIds: merged }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(
+          (data as { error?: string }).error ?? `保存失败 (${res.status})`
+        );
+        return;
+      }
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
+    }
   }
 
   function cancelEdit() {
@@ -972,8 +1033,49 @@ function SkillsPanel({ strategyId }: { strategyId: string }) {
   }
 
   if (!editing) {
+    const showBanner = !bannerDismissed && filteredSuggestions.length > 0;
     return (
       <div className="space-y-3">
+        {showBanner && (
+          <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-900 p-3">
+            <div className="text-sm flex flex-wrap items-center gap-1">
+              <span>系统建议挂上：</span>
+              {filteredSuggestions.slice(0, 3).map((name) => (
+                <Badge key={name} variant="outline" className="ml-1">
+                  {name}
+                </Badge>
+              ))}
+            </div>
+            {error && (
+              <p className="mt-2 text-sm text-destructive">{error}</p>
+            )}
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                onClick={handleAcceptAll}
+                disabled={saving}
+              >
+                {saving ? "采纳中..." : "全部采纳"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handlePickFromSuggestions}
+                disabled={saving}
+              >
+                挑选
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setBannerDismissed(true)}
+                disabled={saving}
+              >
+                关闭
+              </Button>
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
             最多关联 {STRATEGY_SKILLS_MAX} 个技能（已关联 {associated.length}）

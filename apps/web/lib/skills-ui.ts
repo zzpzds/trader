@@ -29,3 +29,26 @@ export function categoryLabel(category: string | null | undefined): string {
   if (!category) return CATEGORY_LABELS.other;
   return (CATEGORY_LABELS as Record<string, string>)[category] ?? category;
 }
+
+/**
+ * Merge `suggestedIds` into `currentIds` while respecting `cap`. Existing
+ * `currentIds` are preserved (and prioritized); only new suggestions are
+ * appended in order, and the result is truncated to `cap`. Duplicates in
+ * either input are removed.
+ */
+export function mergeWithCap(
+  currentIds: string[],
+  suggestedIds: string[],
+  cap: number
+): string[] {
+  const result: string[] = [];
+  for (const id of currentIds) {
+    if (result.length >= cap) break;
+    if (!result.includes(id)) result.push(id);
+  }
+  for (const id of suggestedIds) {
+    if (result.length >= cap) break;
+    if (!result.includes(id)) result.push(id);
+  }
+  return result;
+}
