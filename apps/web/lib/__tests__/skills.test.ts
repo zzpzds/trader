@@ -26,10 +26,13 @@ vi.mock("@/lib/db", () => ({ db: mockDb }));
 
 import {
   ConflictError,
+  NotFoundError,
   SKILL_BODY_MAX,
   STRATEGY_SKILLS_MAX,
   ValidationError,
   createSkill,
+  getSeedManifest,
+  importSeedSkill,
   setStrategySkills,
   validateSkillBody,
   validateSkillCategory,
@@ -246,6 +249,269 @@ describe("setStrategySkills (mocked db)", () => {
 
     expect(mockTx.delete).toHaveBeenCalledTimes(1);
     expect(mockTx.insert).not.toHaveBeenCalled();
+  });
+});
+
+// ---------- Seed manifest / import (mocked db + injected fs) ----------
+
+import { createHash } from "node:crypto";
+
+const SEED_CANDLESTICK = `---
+name: candlestick
+description: K 线形态识别
+category: pattern
+---
+
+# Body
+v1
+`;
+
+const SEED_RISK = `---
+name: risk-checklist
+description: 风险体检
+category: risk
+---
+
+# Risk
+v1
+`;
+
+// What parseFrontmatter would return for SEED_CANDLESTICK's bodyMd: it trims
+// trailing whitespace and re-appends a single newline.
+function bodyOf(raw: string): string {
+  const after = raw.split("\n---\n")[1] ?? "";
+  return after.trimEnd() + "\n";
+}
+
+function makeFsDeps(files: Record<string, string>) {
+  return {
+    seedDir: "/seed",
+    readDir: vi.fn(async () => Object.keys(files)),
+    readFileText: vi.fn(async (p: string) => {
+      const fname = p.split("/").pop()!;
+      const raw = files[fname];
+      if (raw === undefined) throw new Error(`ENOENT: ${p}`);
+      return raw;
+    }),
+    logger: { warn: vi.fn(), error: vi.fn() },
+  };
+}
+
+describe("getSeedManifest", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns 'missing' when DB has no row for the seed name", async () => {
+    const fs = makeFsDeps({ "candlestick.md": SEED_CANDLESTICK });
+    mockDb.query.skills.findMany.mockResolvedValueOnce([]);
+
+    const manifest = await getSeedManifest(fs);
+
+    expect(manifest).toHaveLength(1);
+    expect(manifest[0].name).toBe("candlestick");
+    expect(manifest[0].status).toBe("missing");
+    expect(manifest[0].source).toBeNull();
+    expect(manifest[0].currentBodyHash).toBe(
+      createHash("sha256").update(bodyOf(SEED_CANDLESTICK)).digest("hex")
+    );
+  });
+
+  it("returns 'in-sync' when DB body matches repo body", async () => {
+    const fs = makeFsDeps({ "candlestick.md": SEED_CANDLESTICK });
+    mockDb.query.skills.findMany.mockResolvedValueOnce([
+      {
+        name: "candlestick",
+        source: "seed",
+        bodyMd: bodyOf(SEED_CANDLESTICK),
+      },
+    ]);
+
+    const [entry] = await getSeedManifest(fs);
+    expect(entry.status).toBe("in-sync");
+    expect(entry.source).toBe("seed");
+  });
+
+  it("returns 'edited' when DB body differs", async () => {
+    const fs = makeFsDeps({ "candlestick.md": SEED_CANDLESTICK });
+    mockDb.query.skills.findMany.mockResolvedValueOnce([
+      {
+        name: "candlestick",
+        source: "user",
+        bodyMd: "# user-modified body\n",
+      },
+    ]);
+
+    const [entry] = await getSeedManifest(fs);
+    expect(entry.status).toBe("edited");
+    expect(entry.source).toBe("user");
+  });
+
+  it("skips malformed seed files without crashing", async () => {
+    const fs = makeFsDeps({
+      "candlestick.md": SEED_CANDLESTICK,
+      "broken.md": "no frontmatter here at all",
+    });
+    mockDb.query.skills.findMany.mockResolvedValueOnce([]);
+
+    const manifest = await getSeedManifest(fs);
+    expect(manifest.map((e) => e.name)).toEqual(["candlestick"]);
+    expect(fs.logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining("broken.md")
+    );
+  });
+});
+
+describe("importSeedSkill", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("mode=create inserts a new row with source='seed'", async () => {
+    const fs = makeFsDeps({ "candlestick.md": SEED_CANDLESTICK });
+    mockDb.query.skills.findFirst.mockResolvedValueOnce(undefined);
+    const insertChain = {
+      values: vi.fn().mockReturnThis(),
+      returning: vi
+        .fn()
+        .mockResolvedValueOnce([{ id: "new-id", name: "candlestick" }]),
+    };
+    mockDb.insert.mockReturnValueOnce(insertChain);
+
+    const row = await importSeedSkill(
+      { name: "candlestick", mode: "create" },
+      fs
+    );
+
+    expect(row).toMatchObject({ id: "new-id", name: "candlestick" });
+    expect(insertChain.values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "candlestick",
+        source: "seed",
+        category: "pattern",
+      })
+    );
+  });
+
+  it("mode=create throws ConflictError when DB already has the name", async () => {
+    const fs = makeFsDeps({ "candlestick.md": SEED_CANDLESTICK });
+    mockDb.query.skills.findFirst.mockResolvedValueOnce({
+      id: "existing-id",
+      source: "seed",
+    });
+
+    await expect(
+      importSeedSkill({ name: "candlestick", mode: "create" }, fs)
+    ).rejects.toBeInstanceOf(ConflictError);
+    expect(mockDb.insert).not.toHaveBeenCalled();
+  });
+
+  it("mode=overwrite-seed updates the row when source='seed'", async () => {
+    const fs = makeFsDeps({ "candlestick.md": SEED_CANDLESTICK });
+    mockDb.query.skills.findFirst.mockResolvedValueOnce({
+      id: "existing-id",
+      source: "seed",
+    });
+    const updateChain = {
+      set: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      returning: vi
+        .fn()
+        .mockResolvedValueOnce([{ id: "existing-id", name: "candlestick" }]),
+    };
+    mockDb.update.mockReturnValueOnce(updateChain);
+
+    const row = await importSeedSkill(
+      { name: "candlestick", mode: "overwrite-seed" },
+      fs
+    );
+
+    expect(row).toMatchObject({ id: "existing-id" });
+    expect(updateChain.set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bodyMd: bodyOf(SEED_CANDLESTICK),
+        source: "seed",
+        category: "pattern",
+      })
+    );
+  });
+
+  it("mode=overwrite-seed throws ConflictError when source='user'", async () => {
+    const fs = makeFsDeps({ "candlestick.md": SEED_CANDLESTICK });
+    mockDb.query.skills.findFirst.mockResolvedValueOnce({
+      id: "existing-id",
+      source: "user",
+    });
+
+    await expect(
+      importSeedSkill({ name: "candlestick", mode: "overwrite-seed" }, fs)
+    ).rejects.toBeInstanceOf(ConflictError);
+    expect(mockDb.update).not.toHaveBeenCalled();
+  });
+
+  it("mode=duplicate inserts with `<name>-vibe-trading` when free", async () => {
+    const fs = makeFsDeps({ "candlestick.md": SEED_CANDLESTICK });
+    mockDb.query.skills.findFirst.mockResolvedValueOnce({
+      id: "existing-id",
+      source: "user",
+    });
+    // findMany for free-name search returns no taken candidates
+    mockDb.query.skills.findMany.mockResolvedValueOnce([]);
+    const insertChain = {
+      values: vi.fn().mockReturnThis(),
+      returning: vi.fn().mockResolvedValueOnce([
+        { id: "dup-id", name: "candlestick-vibe-trading" },
+      ]),
+    };
+    mockDb.insert.mockReturnValueOnce(insertChain);
+
+    const row = await importSeedSkill(
+      { name: "candlestick", mode: "duplicate" },
+      fs
+    );
+
+    expect(row.name).toBe("candlestick-vibe-trading");
+    expect(insertChain.values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "candlestick-vibe-trading",
+        source: "seed",
+      })
+    );
+  });
+
+  it("mode=duplicate increments suffix when first candidate is taken", async () => {
+    const fs = makeFsDeps({ "candlestick.md": SEED_CANDLESTICK });
+    mockDb.query.skills.findFirst.mockResolvedValueOnce(undefined);
+    mockDb.query.skills.findMany.mockResolvedValueOnce([
+      { name: "candlestick-vibe-trading" },
+      { name: "candlestick-vibe-trading-2" },
+    ]);
+    const insertChain = {
+      values: vi.fn().mockReturnThis(),
+      returning: vi
+        .fn()
+        .mockResolvedValueOnce([
+          { id: "dup-3", name: "candlestick-vibe-trading-3" },
+        ]),
+    };
+    mockDb.insert.mockReturnValueOnce(insertChain);
+
+    const row = await importSeedSkill(
+      { name: "candlestick", mode: "duplicate" },
+      fs
+    );
+
+    expect(row.name).toBe("candlestick-vibe-trading-3");
+    expect(insertChain.values).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "candlestick-vibe-trading-3" })
+    );
+  });
+
+  it("throws NotFoundError when the seed file is missing", async () => {
+    const fs = makeFsDeps({ "risk-checklist.md": SEED_RISK });
+    await expect(
+      importSeedSkill({ name: "candlestick", mode: "create" }, fs)
+    ).rejects.toBeInstanceOf(NotFoundError);
   });
 });
 

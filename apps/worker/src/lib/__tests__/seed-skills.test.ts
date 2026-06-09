@@ -1,12 +1,28 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@trader/db", () => ({
-  skills: {
-    id: { name: "id" },
-    name: { name: "name" },
-  },
-}));
+// Pull in the real seed-helpers so parseFrontmatter / resolveSeedDir keep
+// working when the SUT now imports them from "@trader/db" rather than defining
+// them locally. We import from the package's *built* seed-helpers entry to
+// avoid dragging schema.ts (which needs drizzle internals we don't mock).
+vi.mock("@trader/db", async () => {
+  const helpers = await vi.importActual<{
+    resolveSeedDir: () => string;
+    parseFrontmatter: (raw: string) => {
+      name: string;
+      description: string | null;
+      category: string | null;
+      bodyMd: string;
+    };
+  }>("../../../../../packages/db/dist/seed-helpers.js");
+  return {
+    ...helpers,
+    skills: {
+      id: { name: "id" },
+      name: { name: "name" },
+    },
+  };
+});
 vi.mock("drizzle-orm", () => ({
   eq: vi.fn((col, val) => ({ _type: "eq", col, val })),
 }));

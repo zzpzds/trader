@@ -1,6 +1,16 @@
+import { readdir, readFile } from "node:fs/promises";
+import path from "node:path";
+import { createHash } from "node:crypto";
 import { eq, asc, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { skills, strategies, strategySkills, type SkillRow } from "@trader/db";
+import {
+  skills,
+  strategies,
+  strategySkills,
+  type SkillRow,
+  resolveSeedDir,
+  parseFrontmatter,
+} from "@trader/db";
 import {
   SKILL_BODY_MAX,
   SKILL_CATEGORIES,
@@ -52,6 +62,14 @@ export class ValidationError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "ValidationError";
+  }
+}
+
+export class NotFoundError extends Error {
+  code = "NOT_FOUND" as const;
+  constructor(message: string) {
+    super(message);
+    this.name = "NotFoundError";
   }
 }
 
@@ -289,6 +307,246 @@ export async function getSkillUsage(skillId: string): Promise<{
     associatedStrategyCount: rows.length,
     strategyNames: rows.map((r) => r.name),
   };
+}
+
+// ---------- Seed manifest / import ----------
+//
+// Status semantics (server-computed):
+//   - "missing": DB has no row with this seed's name
+//   - "in-sync": DB has the row AND sha256(db.body_md) === sha256(repo body)
+//   - "edited" : DB has the row AND hashes differ
+//
+// Mode validity (server-enforced):
+//   - "create"          → only valid when status === "missing"
+//   - "overwrite-seed"  → only valid when DB row exists and source === "seed".
+//                          The UI surfaces this only when status is "edited"
+//                          and source === "seed" (i.e. the repo bumped the
+//                          seed but the user has never edited it). Server-side
+//                          we accept any state where source === "seed", since
+//                          calling overwrite on an "in-sync" row is a no-op
+//                          rather than a hazard.
+//   - "duplicate"       → valid in any state; produces a fresh `<name>-vibe-trading`
+//                          (or `-vibe-trading-N`) row so the user can keep both
+//                          their edits and a clean copy of the seed.
+//
+// File-not-found yields NotFoundError (mapped to 404 by the route).
+
+export type SeedManifestStatus = "missing" | "in-sync" | "edited";
+
+export interface SeedManifestEntry {
+  name: string;
+  description: string | null;
+  category: string | null;
+  currentBodyHash: string;
+  status: SeedManifestStatus;
+  /** DB-side source if the skill exists, else null. Helps UI decide whether
+   *  to offer "overwrite-seed" (only when source === "seed"). */
+  source: "seed" | "user" | null;
+}
+
+export type SeedImportMode = "create" | "overwrite-seed" | "duplicate";
+
+interface SeedDeps {
+  /** Override seed dir (test injection). Defaults to resolveSeedDir(). */
+  seedDir?: string;
+  /** Override file reader (test injection). */
+  readDir?: (dir: string) => Promise<string[]>;
+  readFileText?: (filePath: string) => Promise<string>;
+  /** Override logger (test injection). */
+  logger?: Pick<Console, "warn" | "error">;
+}
+
+function sha256(s: string): string {
+  return createHash("sha256").update(s).digest("hex");
+}
+
+export async function getSeedManifest(
+  deps: SeedDeps = {}
+): Promise<SeedManifestEntry[]> {
+  const seedDir = deps.seedDir ?? resolveSeedDir();
+  const readDir = deps.readDir ?? ((d: string) => readdir(d));
+  const readFileText =
+    deps.readFileText ?? ((p: string) => readFile(p, "utf8"));
+  const logger = deps.logger ?? console;
+
+  const entries = await readDir(seedDir);
+  const mdFiles = entries.filter((f) => f.endsWith(".md")).sort();
+
+  const dbRows = await db.query.skills.findMany({
+    columns: { name: true, source: true, bodyMd: true },
+  });
+  const byName = new Map<string, { source: "seed" | "user"; bodyMd: string }>();
+  for (const r of dbRows) {
+    byName.set(r.name, {
+      source: r.source as "seed" | "user",
+      bodyMd: r.bodyMd,
+    });
+  }
+
+  const out: SeedManifestEntry[] = [];
+  for (const fname of mdFiles) {
+    try {
+      const raw = await readFileText(path.join(seedDir, fname));
+      const parsed = parseFrontmatter(raw);
+      const currentBodyHash = sha256(parsed.bodyMd);
+      const dbRow = byName.get(parsed.name);
+      let status: SeedManifestStatus;
+      let source: "seed" | "user" | null = null;
+      if (!dbRow) {
+        status = "missing";
+      } else {
+        source = dbRow.source;
+        status =
+          sha256(dbRow.bodyMd) === currentBodyHash ? "in-sync" : "edited";
+      }
+      out.push({
+        name: parsed.name,
+        description: parsed.description,
+        category: parsed.category,
+        currentBodyHash,
+        status,
+        source,
+      });
+    } catch (err) {
+      logger.warn(
+        `[seed-manifest] failed to parse ${fname}: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
+    }
+  }
+  return out;
+}
+
+async function findFreeDuplicateName(baseName: string): Promise<string> {
+  const candidates: string[] = [`${baseName}-vibe-trading`];
+  for (let i = 2; i <= 20; i++) {
+    candidates.push(`${baseName}-vibe-trading-${i}`);
+  }
+  const existing = await db.query.skills.findMany({
+    columns: { name: true },
+    where: inArray(skills.name, candidates),
+  });
+  const taken = new Set(existing.map((r) => r.name));
+  const free = candidates.find((c) => !taken.has(c));
+  if (!free) {
+    throw new ConflictError(
+      `could not find a free duplicate name for "${baseName}" (>20 copies)`
+    );
+  }
+  return free;
+}
+
+async function readSeedFileByName(
+  name: string,
+  deps: SeedDeps
+): Promise<{
+  name: string;
+  description: string | null;
+  category: string | null;
+  bodyMd: string;
+}> {
+  const seedDir = deps.seedDir ?? resolveSeedDir();
+  const readDir = deps.readDir ?? ((d: string) => readdir(d));
+  const readFileText =
+    deps.readFileText ?? ((p: string) => readFile(p, "utf8"));
+
+  const entries = await readDir(seedDir);
+  const mdFiles = entries.filter((f) => f.endsWith(".md")).sort();
+  for (const fname of mdFiles) {
+    const raw = await readFileText(path.join(seedDir, fname));
+    const parsed = parseFrontmatter(raw);
+    if (parsed.name === name) return parsed;
+  }
+  throw new NotFoundError(`seed file not found for name "${name}"`);
+}
+
+export async function importSeedSkill(
+  input: { name: string; mode: SeedImportMode },
+  deps: SeedDeps = {}
+): Promise<SkillRow> {
+  if (!input.name || typeof input.name !== "string") {
+    throw new ValidationError("name is required");
+  }
+  if (
+    input.mode !== "create" &&
+    input.mode !== "overwrite-seed" &&
+    input.mode !== "duplicate"
+  ) {
+    throw new ValidationError("mode must be create | overwrite-seed | duplicate");
+  }
+
+  // 1. Locate seed file (404 surface lives in the route).
+  const parsed = await readSeedFileByName(input.name, deps);
+
+  // 2. Look up current DB state for this name.
+  const dbRow = await db.query.skills.findFirst({
+    where: eq(skills.name, parsed.name),
+    columns: { id: true, source: true },
+  });
+
+  // 3. Validate mode against DB state.
+  if (input.mode === "create" && dbRow) {
+    throw new ConflictError(
+      `skill with name "${parsed.name}" already exists; use mode='overwrite-seed' or mode='duplicate'`
+    );
+  }
+  if (input.mode === "overwrite-seed") {
+    if (!dbRow) {
+      throw new ConflictError(
+        `skill "${parsed.name}" does not exist; use mode='create' first`
+      );
+    }
+    if (dbRow.source !== "seed") {
+      throw new ConflictError(
+        "skill has been edited; use mode='duplicate' to import as a copy"
+      );
+    }
+  }
+
+  // 4. Execute.
+  if (input.mode === "create") {
+    const [row] = await db
+      .insert(skills)
+      .values({
+        name: parsed.name,
+        description: parsed.description,
+        category: parsed.category,
+        bodyMd: parsed.bodyMd,
+        source: "seed",
+      })
+      .returning();
+    return row;
+  }
+
+  if (input.mode === "overwrite-seed") {
+    const [row] = await db
+      .update(skills)
+      .set({
+        bodyMd: parsed.bodyMd,
+        description: parsed.description,
+        category: parsed.category,
+        source: "seed",
+        updatedAt: new Date(),
+      })
+      .where(eq(skills.id, dbRow!.id))
+      .returning();
+    return row;
+  }
+
+  // mode === "duplicate"
+  const freeName = await findFreeDuplicateName(parsed.name);
+  const [row] = await db
+    .insert(skills)
+    .values({
+      name: freeName,
+      description: parsed.description,
+      category: parsed.category,
+      bodyMd: parsed.bodyMd,
+      source: "seed",
+    })
+    .returning();
+  return row;
 }
 
 export async function setStrategySkills(
