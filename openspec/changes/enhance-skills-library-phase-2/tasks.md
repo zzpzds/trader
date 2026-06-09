@@ -32,10 +32,10 @@
 
 ## 5. /skills/import 页面
 
-- [ ] 5.1 创建 `apps/web/app/skills/import/page.tsx`：列表 + 状态徽章 + 操作按钮
-- [ ] 5.2 列表头部加返回 `/skills` 的链接 + 简短说明
-- [ ] 5.3 副本导入成功后展示「已创建副本：<新 name>」提示
-- [ ] 5.4 在 `/skills` 列表页头部加「导入向导」链接（小入口，不改 nav）
+- [x] 5.1 创建 `apps/web/app/skills/import/page.tsx`：列表 + 状态徽章 + 操作按钮
+- [x] 5.2 列表头部加返回 `/skills` 的链接 + 简短说明
+- [x] 5.3 副本导入成功后展示「已创建副本：<新 name>」提示
+- [x] 5.4 在 `/skills` 列表页头部加「导入向导」链接（小入口，不改 nav）
 
 ## 6. SkillsPanel 推荐 banner
 

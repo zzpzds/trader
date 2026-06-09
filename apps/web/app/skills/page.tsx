@@ -50,12 +50,20 @@ export default function SkillsPage() {
             Skill 是可挂到策略上的方法论文档，监控分析时会注入到 LLM prompt。
           </p>
         </div>
-        <Link
-          href="/skills/new"
-          className="inline-flex items-center gap-1 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg px-3 h-8 text-sm font-medium"
-        >
-          <Plus size={14} /> 新建技能
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/skills/import"
+            className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
+          >
+            从仓库导入
+          </Link>
+          <Link
+            href="/skills/new"
+            className="inline-flex items-center gap-1 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg px-3 h-8 text-sm font-medium"
+          >
+            <Plus size={14} /> 新建技能
+          </Link>
+        </div>
       </div>
 
       {skills === null && (
