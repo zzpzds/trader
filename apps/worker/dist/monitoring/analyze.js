@@ -31,6 +31,11 @@ const reportToolSchema = {
                     required: ["symbol", "new_reference_price"],
                 },
             },
+            suggested_skills: {
+                type: "array",
+                description: "Optional: 0–3 skill names from 可选技能目录 that would help future analyses. Return [] if none apply.",
+                items: { type: "string" },
+            },
         },
         required: ["analysis", "has_action_items"],
     },
@@ -41,7 +46,7 @@ export function createAnalyzer(client) {
         apiKey: cfg.apiKey,
         baseURL: cfg.baseURL,
     });
-    return async function analyzeStrategy(strategyName, strategyContent, positions, prices, memories = [], skills = []) {
+    return async function analyzeStrategy(strategyName, strategyContent, positions, prices, memories = [], skills = [], availableSkills = []) {
         const memoriesBlock = memories.length === 0
             ? ""
             : `## 你之前留下的相关笔记\n\n${memories
@@ -55,6 +60,11 @@ export function createAnalyzer(client) {
             : `## 可用方法论\n\n${skills
                 .map((s) => `### ${s.name}\n${s.bodyMd}`)
                 .join("\n\n---\n\n")}\n\n`;
+        const catalogBlock = availableSkills.length === 0
+            ? ""
+            : `## 可选技能目录\n（如果以下方法论中有任何一个对本次分析会有帮助但当前未被启用，请在 suggested_skills 中列出对应的 name；最多 3 条；如果都没必要，返回空数组）\n${availableSkills
+                .map((s) => (s.description ? `- ${s.name}: ${s.description}` : `- ${s.name}`))
+                .join("\n")}\n\n`;
         const positionSummary = positions
             .map((p) => {
             const priceData = prices[p.symbol];
@@ -79,7 +89,7 @@ export function createAnalyzer(client) {
                     role: "user",
                     content: `你是一位严格按规则行事的交易策略分析师。基于下方策略 + 持仓 + 行情，判断今天是否触发了策略规则，并产出**简短**的中文分析。
 
-${skillsBlock}${memoriesBlock}## 策略：${strategyName}
+${skillsBlock}${catalogBlock}${memoriesBlock}## 策略：${strategyName}
 
 ${strategyContent}
 
@@ -126,6 +136,7 @@ ${recentBars}
                 symbol: u.symbol,
                 newReferencePrice: u.new_reference_price,
             })),
+            suggestedSkills: input.suggested_skills ?? [],
         };
     };
 }

@@ -118,6 +118,12 @@ async function loadSkillsForStrategy(db, strategyId) {
         .where(eq(strategySkills.strategyId, strategyId));
     return rows;
 }
+async function loadCatalogForAnalysis(db) {
+    return db.query.skills.findMany({
+        columns: { name: true, description: true },
+        orderBy: (s, { asc }) => [asc(s.name)],
+    });
+}
 export async function processStrategy(db, strategy, analyze) {
     const today = new Date().toISOString().slice(0, 10);
     const [run] = await db
@@ -168,11 +174,14 @@ export async function processStrategy(db, strategy, analyze) {
                 })),
             };
         });
-        const loadedSkills = await loadSkillsForStrategy(db, strategy.id);
+        const [loadedSkills, availableSkills] = await Promise.all([
+            loadSkillsForStrategy(db, strategy.id),
+            loadCatalogForAnalysis(db),
+        ]);
         const analysis = await withRetry(async () => {
             const symbols = strategy.positions.map((p) => p.symbol);
             const relevantMemories = await loadRelevantMemories(db, strategy.id, symbols);
-            return analyze(strategy.name, strategy.content, positionInfos, prices, relevantMemories, loadedSkills);
+            return analyze(strategy.name, strategy.content, positionInfos, prices, relevantMemories, loadedSkills, availableSkills);
         }, ANALYZE_MAX_ATTEMPTS, ANALYZE_RETRY_BASE_MS, `analyze(${strategy.name})`);
         const skillSnapshot = loadedSkills.map((s) => ({
             id: s.id,
@@ -187,6 +196,7 @@ export async function processStrategy(db, strategy, analyze) {
             analysis: analysis.analysis,
             hasActionItems: analysis.hasActionItems,
             skillSnapshot,
+            suggestedSkills: analysis.suggestedSkills,
         })
             .where(eq(monitoringRuns.id, run.id));
         const refPriceUpdates = analysis.referencePriceUpdates;

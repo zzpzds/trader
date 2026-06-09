@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { createAnalyzer } from "../analyze.js";
 
-function makeToolUseResponse(input: { analysis: string; has_action_items: boolean; action_summary?: string; reference_price_updates?: Array<{ symbol: string; new_reference_price: number }> }) {
+function makeToolUseResponse(input: { analysis: string; has_action_items: boolean; action_summary?: string; reference_price_updates?: Array<{ symbol: string; new_reference_price: number }>; suggested_skills?: string[] }) {
   return {
     content: [
       {
@@ -230,6 +230,89 @@ describe("analyzeStrategy", () => {
     const memoriesIdx = prompt.indexOf("## 你之前留下的相关笔记");
     expect(skillsIdx).toBeGreaterThanOrEqual(0);
     expect(memoriesIdx).toBeGreaterThan(skillsIdx);
+  });
+
+  it("omits catalog block when availableSkills empty", async () => {
+    const client = mockClient(
+      makeToolUseResponse({ analysis: "ok", has_action_items: false })
+    );
+    const analyze = createAnalyzer(client);
+    await analyze(
+      "S",
+      "rules",
+      [{ symbol: "QQQ", totalShares: 10, avgCost: 100, lots: [] }],
+      { QQQ: { latest: 110, bars: [] } },
+      [],
+      [],
+      []
+    );
+    const prompt = (client.messages.create as any).mock.calls[0][0].messages[0].content as string;
+    expect(prompt).not.toContain("## 可选技能目录");
+  });
+
+  it("includes catalog block between skills and memories with proper formatting", async () => {
+    const client = mockClient(
+      makeToolUseResponse({ analysis: "ok", has_action_items: false })
+    );
+    const analyze = createAnalyzer(client);
+    await analyze(
+      "MyStrat",
+      "rules",
+      [{ symbol: "QQQ", totalShares: 10, avgCost: 100, lots: [] }],
+      { QQQ: { latest: 110, bars: [] } },
+      [{ id: "1", title: "note", kind: "idea", symbol: "QQQ", pinned: false, contentPreview: "hi" }],
+      [{ id: "sk", name: "active-skill", bodyMd: "# active" }],
+      [
+        { name: "a", description: "A desc" },
+        { name: "b", description: null },
+      ]
+    );
+    const prompt = (client.messages.create as any).mock.calls[0][0].messages[0].content as string;
+    expect(prompt).toContain("## 可选技能目录");
+    expect(prompt).toContain("- a: A desc");
+    // null description → no colon
+    expect(prompt).toMatch(/(^|\n)- b(\n|$)/);
+    // ordering: skills < catalog < memories < strategy
+    const skillsIdx = prompt.indexOf("## 可用方法论");
+    const catalogIdx = prompt.indexOf("## 可选技能目录");
+    const memoriesIdx = prompt.indexOf("## 你之前留下的相关笔记");
+    const strategyIdx = prompt.indexOf("## 策略：MyStrat");
+    expect(skillsIdx).toBeGreaterThanOrEqual(0);
+    expect(catalogIdx).toBeGreaterThan(skillsIdx);
+    expect(memoriesIdx).toBeGreaterThan(catalogIdx);
+    expect(strategyIdx).toBeGreaterThan(memoriesIdx);
+  });
+
+  it("parses suggestedSkills from tool input", async () => {
+    const client = mockClient(
+      makeToolUseResponse({
+        analysis: "ok",
+        has_action_items: false,
+        suggested_skills: ["candlestick", "risk-checklist"],
+      })
+    );
+    const analyze = createAnalyzer(client);
+    const result = await analyze(
+      "S",
+      "rules",
+      [{ symbol: "QQQ", totalShares: 10, avgCost: 100, lots: [] }],
+      { QQQ: { latest: 110, bars: [] } }
+    );
+    expect(result.suggestedSkills).toEqual(["candlestick", "risk-checklist"]);
+  });
+
+  it("defaults suggestedSkills to [] when LLM omits the field", async () => {
+    const client = mockClient(
+      makeToolUseResponse({ analysis: "ok", has_action_items: false })
+    );
+    const analyze = createAnalyzer(client);
+    const result = await analyze(
+      "S",
+      "rules",
+      [{ symbol: "QQQ", totalShares: 10, avgCost: 100, lots: [] }],
+      { QQQ: { latest: 110, bars: [] } }
+    );
+    expect(result.suggestedSkills).toEqual([]);
   });
 
   it("works without the memories argument (back-compat)", async () => {

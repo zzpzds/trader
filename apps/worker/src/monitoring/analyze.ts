@@ -34,6 +34,12 @@ const reportToolSchema = {
           required: ["symbol", "new_reference_price"],
         },
       },
+      suggested_skills: {
+        type: "array" as const,
+        description:
+          "Optional: 0–3 skill names from 可选技能目录 that would help future analyses. Return [] if none apply.",
+        items: { type: "string" as const },
+      },
     },
     required: ["analysis", "has_action_items"],
   },
@@ -44,6 +50,12 @@ export interface AnalysisResult {
   hasActionItems: boolean;
   actionSummary?: string;
   referencePriceUpdates: Array<{ symbol: string; newReferencePrice: number }>;
+  suggestedSkills: string[];
+}
+
+export interface SkillCatalogEntry {
+  name: string;
+  description: string | null;
 }
 
 export interface PositionInfo {
@@ -73,7 +85,8 @@ export function createAnalyzer(client?: Anthropic) {
     positions: PositionInfo[],
     prices: Record<string, { latest: number; bars: Array<{ date: string; close: number }> }>,
     memories: RelevantMemory[] = [],
-    skills: SkillForAnalysis[] = []
+    skills: SkillForAnalysis[] = [],
+    availableSkills: SkillCatalogEntry[] = []
   ): Promise<AnalysisResult> {
     const memoriesBlock = memories.length === 0
       ? ""
@@ -89,6 +102,12 @@ export function createAnalyzer(client?: Anthropic) {
       : `## 可用方法论\n\n${skills
           .map((s) => `### ${s.name}\n${s.bodyMd}`)
           .join("\n\n---\n\n")}\n\n`;
+
+    const catalogBlock = availableSkills.length === 0
+      ? ""
+      : `## 可选技能目录\n（如果以下方法论中有任何一个对本次分析会有帮助但当前未被启用，请在 suggested_skills 中列出对应的 name；最多 3 条；如果都没必要，返回空数组）\n${availableSkills
+          .map((s) => (s.description ? `- ${s.name}: ${s.description}` : `- ${s.name}`))
+          .join("\n")}\n\n`;
 
     const positionSummary = positions
       .map((p) => {
@@ -116,7 +135,7 @@ export function createAnalyzer(client?: Anthropic) {
           role: "user",
           content: `你是一位严格按规则行事的交易策略分析师。基于下方策略 + 持仓 + 行情，判断今天是否触发了策略规则，并产出**简短**的中文分析。
 
-${skillsBlock}${memoriesBlock}## 策略：${strategyName}
+${skillsBlock}${catalogBlock}${memoriesBlock}## 策略：${strategyName}
 
 ${strategyContent}
 
@@ -164,6 +183,7 @@ ${recentBars}
       has_action_items: boolean;
       action_summary?: string;
       reference_price_updates?: Array<{ symbol: string; new_reference_price: number }>;
+      suggested_skills?: string[];
     };
 
     return {
@@ -174,6 +194,7 @@ ${recentBars}
         symbol: u.symbol,
         newReferencePrice: u.new_reference_price,
       })),
+      suggestedSkills: input.suggested_skills ?? [],
     };
   };
 }

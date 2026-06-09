@@ -175,6 +175,15 @@ async function loadSkillsForStrategy(
   return rows;
 }
 
+async function loadCatalogForAnalysis(
+  db: DbType
+): Promise<Array<{ name: string; description: string | null }>> {
+  return db.query.skills.findMany({
+    columns: { name: true, description: true },
+    orderBy: (s, { asc }) => [asc(s.name)],
+  });
+}
+
 export async function processStrategy(
   db: DbType,
   strategy: StrategyWithLots,
@@ -245,7 +254,10 @@ export async function processStrategy(
       };
     });
 
-    const loadedSkills = await loadSkillsForStrategy(db, strategy.id);
+    const [loadedSkills, availableSkills] = await Promise.all([
+      loadSkillsForStrategy(db, strategy.id),
+      loadCatalogForAnalysis(db),
+    ]);
 
     const analysis = await withRetry(
       async () => {
@@ -257,7 +269,8 @@ export async function processStrategy(
           positionInfos,
           prices,
           relevantMemories,
-          loadedSkills
+          loadedSkills,
+          availableSkills
         );
       },
       ANALYZE_MAX_ATTEMPTS,
@@ -279,6 +292,7 @@ export async function processStrategy(
         analysis: analysis.analysis,
         hasActionItems: analysis.hasActionItems,
         skillSnapshot,
+        suggestedSkills: analysis.suggestedSkills,
       })
       .where(eq(monitoringRuns.id, run.id));
 
