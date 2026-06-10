@@ -180,6 +180,7 @@ export function ManualPositionsTab() {
       {data.map((p) => {
         const totalShares = parseFloat(p.totalShares);
         const avg = parseFloat(p.avgCost);
+        const marketValue = totalShares * (p.latestPrice ?? avg);
         const pnl = p.totalPnl;
         const pct = p.totalPnlPercent;
         const gain = pnl != null && pnl >= 0;
@@ -196,6 +197,9 @@ export function ManualPositionsTab() {
                     <>
                       <span className="text-sm">{totalShares} 股</span>
                       <span className="text-sm text-muted-foreground">均价 ${avg.toFixed(2)}</span>
+                      <span className="text-sm text-muted-foreground">
+                        市值 ${marketValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
                     </>
                   )}
                 </div>

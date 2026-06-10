@@ -283,6 +283,7 @@ function PositionsPageInner() {
             {positions.map((pos) => {
               const totalShares = parseFloat(pos.totalShares);
               const avgCost = parseFloat(pos.avgCost);
+              const marketValue = totalShares * (pos.latestPrice ?? avgCost);
               const pct = pos.totalPnlPercent;
               const pnl = pos.totalPnl;
               const gain = pct != null && pct >= 0;
@@ -308,6 +309,9 @@ function PositionsPageInner() {
                             <span className="text-sm">{totalShares} 股</span>
                             <span className="text-sm text-muted-foreground">
                               均价 ${avgCost.toFixed(2)}
+                            </span>
+                            <span className="text-sm text-muted-foreground">
+                              市值 ${marketValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
                           </>
                         )}
