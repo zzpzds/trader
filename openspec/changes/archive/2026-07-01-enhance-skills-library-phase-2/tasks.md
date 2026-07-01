@@ -23,12 +23,12 @@
 
 ## 4. seed manifest 后端
 
-- [ ] 4.1 在 `apps/web/lib/skills.ts` 实现 `getSeedManifest()` 返回 `Array<{ name, description, category, currentBodyHash, status }>`
-- [ ] 4.2 在 `apps/web/lib/skills.ts` 实现 `importSeedSkill({ name, mode })` 处理 create / overwrite-seed / duplicate 三种模式；mode 与状态校验在此层
-- [ ] 4.3 创建 `apps/web/app/api/skills/seed/manifest/route.ts`：GET → manifest
-- [ ] 4.4 创建 `apps/web/app/api/skills/seed/import/route.ts`：POST → 调用 importSeedSkill；mode 不匹配状态时返回 409；找不到 seed 文件返回 404
-- [ ] 4.5 复用 Phase 1 的 `resolveSeedDir` 逻辑——抽到公共位置（建议放 `@trader/db` package 或创建 `apps/web/lib/seed-dir.ts`），让 web 也能定位 seed 目录
-- [ ] 4.6 扩展 `apps/web/lib/__tests__/skills.test.ts`：覆盖 manifest 状态判断、import 三种模式、副本命名冲突时递增
+- [x] 4.1 在 `apps/web/lib/skills.ts` 实现 `getSeedManifest()` 返回 `Array<{ name, description, category, currentBodyHash, status }>`
+- [x] 4.2 在 `apps/web/lib/skills.ts` 实现 `importSeedSkill({ name, mode })` 处理 create / overwrite-seed / duplicate 三种模式；mode 与状态校验在此层
+- [x] 4.3 创建 `apps/web/app/api/skills/seed/manifest/route.ts`：GET → manifest
+- [x] 4.4 创建 `apps/web/app/api/skills/seed/import/route.ts`：POST → 调用 importSeedSkill；mode 不匹配状态时返回 409；找不到 seed 文件返回 404
+- [x] 4.5 复用 Phase 1 的 `resolveSeedDir` 逻辑——抽到公共位置（建议放 `@trader/db` package 或创建 `apps/web/lib/seed-dir.ts`），让 web 也能定位 seed 目录
+- [x] 4.6 扩展 `apps/web/lib/__tests__/skills.test.ts`：覆盖 manifest 状态判断、import 三种模式、副本命名冲突时递增
 
 ## 5. /skills/import 页面
 

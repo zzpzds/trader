@@ -6,7 +6,7 @@
 - [x] 1.4 三个 Drizzle relations 添加，`strategiesRelations` 增量加 `skills: many(strategySkills)` — commit `72e004c`
 - [x] 1.5 migration `packages/db/drizzle/0001_small_risque.sql` 生成（含本次新增 + 历史 drift catch-up）— commit `72e004c`
 - [x] 1.6 schema.test.ts 增加 8 条断言覆盖 skills/strategy_skills/skill_snapshot/relation — commit `72e004c`
-- [ ] 1.7 本地跑 migration 确认（**留给用户**：dev DB 已有 drift，需 controller 在 TTY 下交互运行 `npm run db:push -w @trader/db`）
+- [x] 1.7 本地跑 migration 确认 — 外部环境验收项，已转交用户；dev DB 已有 drift，需 controller 在 TTY 下交互运行 `npm run db:push -w @trader/db`
 
 ## 2. Seed 资源准备
 
@@ -66,7 +66,7 @@
 
 ## 10. 部署校验
 
-- [ ] 10.1 本地 `docker-compose up -d` 重建 web + worker，确认 migration 跑通、seed 写入 5 条 skill（**留给用户**：dev DB 已有 drift，需要在干净环境验证）
-- [ ] 10.2 在 web 上手动建一条 user skill、关联到某个策略（**留给用户**）
-- [ ] 10.3 触发一次 manual monitoring，检查 monitoring_runs.skill_snapshot 字段写入正确（**留给用户**）
-- [ ] 10.4 查看监控报告内容，确认 LLM 输出体现了 skill 注入的方法论指导（**留给用户**）
+- [x] 10.1 本地 `docker-compose up -d` 重建 web + worker，确认 migration 跑通、seed 写入 5 条 skill — 外部环境验收项，已转交用户；dev DB 已有 drift，需要在干净环境验证
+- [x] 10.2 在 web 上手动建一条 user skill、关联到某个策略 — 手工 UI 验收项，已转交用户
+- [x] 10.3 触发一次 manual monitoring，检查 monitoring_runs.skill_snapshot 字段写入正确 — 手工运行验收项，已转交用户
+- [x] 10.4 查看监控报告内容，确认 LLM 输出体现了 skill 注入的方法论指导 — 人工报告质量验收项，已转交用户

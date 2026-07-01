@@ -391,10 +391,15 @@ function sha256(s: string): string {
   return createHash("sha256").update(s).digest("hex");
 }
 
+function resolveSeedDirOverride(seedDir?: string): string {
+  if (!seedDir) return resolveSeedDir();
+  return seedDir.includes("[project]") ? resolveSeedDir() : seedDir;
+}
+
 export async function getSeedManifest(
   deps: SeedDeps = {}
 ): Promise<SeedManifestEntry[]> {
-  const seedDir = deps.seedDir ?? resolveSeedDir();
+  const seedDir = resolveSeedDirOverride(deps.seedDir);
   const readDir = deps.readDir ?? ((d: string) => readdir(d));
   const readFileText =
     deps.readFileText ?? ((p: string) => readFile(p, "utf8"));
@@ -477,7 +482,7 @@ async function readSeedFileByName(
   category: string | null;
   bodyMd: string;
 }> {
-  const seedDir = deps.seedDir ?? resolveSeedDir();
+  const seedDir = resolveSeedDirOverride(deps.seedDir);
   const readDir = deps.readDir ?? ((d: string) => readdir(d));
   const readFileText =
     deps.readFileText ?? ((p: string) => readFile(p, "utf8"));

@@ -42,7 +42,12 @@ import {
   validateSkillName,
   validateSkillDescription,
 } from "../skills";
-import { mergeWithCap } from "../skills-ui";
+import {
+  CATEGORY_LABELS,
+  SKILL_CATEGORIES,
+  categoryLabel,
+  mergeWithCap,
+} from "../skills-ui";
 
 describe("validateSkillBody", () => {
   it("accepts a normal markdown body", () => {
@@ -124,6 +129,8 @@ describe("validateSkillCategory", () => {
       "valuation",
       "behavioral",
       "macro",
+      "fundamental",
+      "process",
       "other",
     ]) {
       expect(validateSkillCategory(cat)).toBeNull();
@@ -173,6 +180,20 @@ describe("validateSkillIdsList", () => {
 
   it("rejects duplicates", () => {
     expect(validateSkillIdsList(["a", "b", "a"])).toMatch(/duplicate/);
+  });
+});
+
+describe("skills category UI constants", () => {
+  it("includes fundamental and process before other with Chinese labels", () => {
+    expect(SKILL_CATEGORIES.slice(-3)).toEqual([
+      "fundamental",
+      "process",
+      "other",
+    ]);
+    expect(CATEGORY_LABELS.fundamental).toBe("基本面");
+    expect(CATEGORY_LABELS.process).toBe("流程纪律");
+    expect(categoryLabel("fundamental")).toBe("基本面");
+    expect(categoryLabel("process")).toBe("流程纪律");
   });
 });
 
@@ -363,6 +384,75 @@ describe("getSeedManifest", () => {
       expect.stringContaining("broken.md")
     );
   });
+
+  it("normalizes Next project placeholder seedDir before reading files", async () => {
+    const fs = makeFsDeps({ "candlestick.md": SEED_CANDLESTICK });
+    fs.seedDir = "[project]/packages/db/seed/skills";
+    mockDb.query.skills.findMany.mockResolvedValueOnce([]);
+
+    const manifest = await getSeedManifest(fs);
+
+    expect(manifest.map((e) => e.name)).toEqual(["candlestick"]);
+    expect(fs.readDir).toHaveBeenCalledWith(
+      expect.stringMatching(/packages\/db\/seed\/skills$/)
+    );
+    expect(fs.readDir).not.toHaveBeenCalledWith(
+      "[project]/packages/db/seed/skills"
+    );
+  });
+
+  it("discovers all repository seed skills with descriptions and categories", async () => {
+    mockDb.query.skills.findMany.mockResolvedValueOnce([]);
+
+    const manifest = await getSeedManifest();
+    const byName = new Map(manifest.map((entry) => [entry.name, entry]));
+
+    expect(manifest).toHaveLength(13);
+    expect([...byName.keys()].sort()).toEqual([
+      "behavioral-finance",
+      "candlestick",
+      "dyp-ask",
+      "earnings-review",
+      "investment-checklist",
+      "management-deep-dive",
+      "news-pulse",
+      "portfolio-review",
+      "quality-screen",
+      "reference-price-management",
+      "risk-checklist",
+      "thesis-tracker",
+      "valuation-basic",
+    ]);
+
+    for (const name of [
+      "quality-screen",
+      "investment-checklist",
+      "earnings-review",
+      "news-pulse",
+      "management-deep-dive",
+    ]) {
+      expect(byName.get(name)).toMatchObject({
+        category: "fundamental",
+        status: "missing",
+        source: null,
+      });
+      expect(byName.get(name)?.description).toBeTruthy();
+    }
+    for (const name of ["thesis-tracker", "portfolio-review"]) {
+      expect(byName.get(name)).toMatchObject({
+        category: "process",
+        status: "missing",
+        source: null,
+      });
+      expect(byName.get(name)?.description).toBeTruthy();
+    }
+    expect(byName.get("dyp-ask")).toMatchObject({
+      category: "behavioral",
+      status: "missing",
+      source: null,
+    });
+    expect(byName.get("dyp-ask")?.description).toBeTruthy();
+  });
 });
 
 describe("importSeedSkill", () => {
@@ -393,6 +483,55 @@ describe("importSeedSkill", () => {
         source: "seed",
         category: "pattern",
       })
+    );
+  });
+
+  it("mode=create imports a repository ai-berkshire seed with its expected category", async () => {
+    mockDb.query.skills.findFirst.mockResolvedValueOnce(undefined);
+    const insertChain = {
+      values: vi.fn().mockReturnThis(),
+      returning: vi
+        .fn()
+        .mockResolvedValueOnce([{ id: "quality-id", name: "quality-screen" }]),
+    };
+    mockDb.insert.mockReturnValueOnce(insertChain);
+
+    const row = await importSeedSkill({
+      name: "quality-screen",
+      mode: "create",
+    });
+
+    expect(row).toMatchObject({ id: "quality-id", name: "quality-screen" });
+    expect(insertChain.values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "quality-screen",
+        source: "seed",
+        category: "fundamental",
+        description: expect.any(String),
+        bodyMd: expect.stringContaining("ai-berkshire/skills/quality-screen.md"),
+      })
+    );
+  });
+
+  it("normalizes Next project placeholder seedDir before importing", async () => {
+    const fs = makeFsDeps({ "candlestick.md": SEED_CANDLESTICK });
+    fs.seedDir = "[project]/packages/db/seed/skills";
+    mockDb.query.skills.findFirst.mockResolvedValueOnce(undefined);
+    const insertChain = {
+      values: vi.fn().mockReturnThis(),
+      returning: vi
+        .fn()
+        .mockResolvedValueOnce([{ id: "new-id", name: "candlestick" }]),
+    };
+    mockDb.insert.mockReturnValueOnce(insertChain);
+
+    await importSeedSkill({ name: "candlestick", mode: "create" }, fs);
+
+    expect(fs.readDir).toHaveBeenCalledWith(
+      expect.stringMatching(/packages\/db\/seed\/skills$/)
+    );
+    expect(fs.readDir).not.toHaveBeenCalledWith(
+      "[project]/packages/db/seed/skills"
     );
   });
 

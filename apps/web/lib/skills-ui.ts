@@ -11,6 +11,8 @@ export const SKILL_CATEGORIES = [
   "valuation",
   "behavioral",
   "macro",
+  "fundamental",
+  "process",
   "other",
 ] as const;
 
@@ -22,6 +24,8 @@ export const CATEGORY_LABELS: Record<SkillCategory, string> = {
   valuation: "估值方法",
   behavioral: "行为金融",
   macro: "宏观分析",
+  fundamental: "基本面",
+  process: "流程纪律",
   other: "其他",
 };
 
