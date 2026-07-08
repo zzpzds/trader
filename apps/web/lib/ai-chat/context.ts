@@ -1,4 +1,4 @@
-import { desc, eq, inArray, or } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import {
   memories,
   priceSnapshots,
@@ -132,34 +132,23 @@ export function createDbAiChatRepository(): AiChatRepository {
     async listRecentPrices(symbols) {
       if (symbols.length === 0) return {};
 
-      const rows = await db
-        .select({
-          symbol: priceSnapshots.symbol,
-          date: priceSnapshots.date,
-          close: priceSnapshots.close,
-        })
-        .from(priceSnapshots)
-        .where(inArray(priceSnapshots.symbol, symbols))
-        .orderBy(priceSnapshots.symbol, desc(priceSnapshots.date));
-
       const grouped: Record<string, RecentPriceRow[]> = {};
-      for (const row of rows) {
-        const bucket = grouped[row.symbol] ?? [];
-        if (bucket.length < PRICES_PER_SYMBOL_LIMIT) {
-          bucket.push(row);
-          grouped[row.symbol] = bucket;
-        }
+      for (const symbol of symbols) {
+        grouped[symbol] = await db
+          .select({
+            symbol: priceSnapshots.symbol,
+            date: priceSnapshots.date,
+            close: priceSnapshots.close,
+          })
+          .from(priceSnapshots)
+          .where(eq(priceSnapshots.symbol, symbol))
+          .orderBy(desc(priceSnapshots.date))
+          .limit(PRICES_PER_SYMBOL_LIMIT);
       }
       return grouped;
     },
     async listMemories({ symbols, strategyIds }) {
-      const filters = [];
-      filters.push(eq(memories.pinned, true));
-      if (symbols.length > 0) filters.push(inArray(memories.symbol, symbols));
-      if (strategyIds.length > 0) filters.push(inArray(memories.strategyId, strategyIds));
-
       return db.query.memories.findMany({
-        where: or(...filters),
         orderBy: (table, { desc: descFn }) => [descFn(table.pinned), descFn(table.updatedAt)],
         limit: 48,
       });

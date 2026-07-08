@@ -1,6 +1,13 @@
 // @vitest-environment node
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildPortfolioChatContext, type AiChatRepository } from "./context";
+
+afterEach(() => {
+  vi.resetAllMocks();
+  vi.resetModules();
+  vi.unmock("@/lib/db");
+  vi.unmock("drizzle-orm");
+});
 
 describe("buildPortfolioChatContext", () => {
   it("builds context from strategies, open positions, prices, lots, and memories", async () => {
@@ -228,5 +235,133 @@ describe("buildPortfolioChatContext", () => {
     expect(
       context.memories.reduce((sum, memory) => sum + memory.content.length, 0)
     ).toBeLessThanOrEqual(6000);
+  });
+
+  it("includes recent global memories in repository candidates", async () => {
+    const findMany = vi.fn(async (args?: { where?: unknown }) => {
+      if (args?.where) {
+        return [
+          {
+            id: "m-targeted",
+            title: "策略复盘",
+            content: "与策略直接相关。",
+            kind: "lesson",
+            strategyId: "s1",
+            symbol: null,
+            tags: [],
+            pinned: false,
+            createdAt: new Date("2026-07-07T00:00:00Z"),
+            updatedAt: new Date("2026-07-07T00:00:00Z"),
+          },
+        ];
+      }
+
+      return [
+        {
+          id: "m-targeted",
+          title: "策略复盘",
+          content: "与策略直接相关。",
+          kind: "lesson",
+          strategyId: "s1",
+          symbol: null,
+          tags: [],
+          pinned: false,
+          createdAt: new Date("2026-07-07T00:00:00Z"),
+          updatedAt: new Date("2026-07-07T00:00:00Z"),
+        },
+        {
+          id: "m-global",
+          title: "市场观察",
+          content: "近期但未绑定 symbol 或 strategy。",
+          kind: "context",
+          strategyId: null,
+          symbol: null,
+          tags: [],
+          pinned: false,
+          createdAt: new Date("2026-07-08T00:00:00Z"),
+          updatedAt: new Date("2026-07-08T00:00:00Z"),
+        },
+      ];
+    });
+
+    vi.doMock("@/lib/db", () => ({
+      db: {
+        query: {
+          strategies: { findMany: vi.fn() },
+          positions: { findMany: vi.fn() },
+          positionLots: { findMany: vi.fn() },
+          memories: { findMany },
+        },
+      },
+    }));
+
+    const { createDbAiChatRepository } = await import("./context");
+    const repo = createDbAiChatRepository();
+    const memories = await repo.listMemories({
+      symbols: ["AAPL"],
+      strategyIds: ["s1"],
+    });
+
+    expect(memories.map((memory) => memory.id)).toContain("m-global");
+  });
+
+  it("limits recent price queries to 10 rows per symbol in repository layer", async () => {
+    const queryCalls: Array<{
+      symbol: string;
+      limit?: number;
+    }> = [];
+
+    vi.doMock("drizzle-orm", async () => {
+      const actual = await vi.importActual<typeof import("drizzle-orm")>(
+        "drizzle-orm"
+      );
+      return {
+        ...actual,
+        eq: (_column: unknown, symbol: string) => ({ symbol }),
+        desc: (value: unknown) => value,
+      };
+    });
+
+    vi.doMock("@/lib/db", () => ({
+      db: {
+        select: vi.fn(() => ({
+          from: vi.fn(() => ({
+            where: vi.fn((condition: { symbol: string }) => {
+              const call = { symbol: condition.symbol } as {
+                symbol: string;
+                limit?: number;
+              };
+              queryCalls.push(call);
+              const orderedResult = {
+                limit: vi.fn(async (value: number) => {
+                  call.limit = value;
+                  return [];
+                }),
+                then: (resolve: (value: []) => unknown) => resolve([]),
+              };
+              return {
+                orderBy: vi.fn(() => orderedResult),
+              };
+            }),
+          })),
+        })),
+        query: {
+          strategies: { findMany: vi.fn() },
+          positions: { findMany: vi.fn() },
+          positionLots: { findMany: vi.fn() },
+          memories: { findMany: vi.fn() },
+        },
+      },
+    }));
+
+    const { createDbAiChatRepository } = await import("./context");
+    const repo = createDbAiChatRepository();
+
+    await repo.listRecentPrices(["AAPL", "MSFT"]);
+
+    expect(queryCalls).toEqual([
+      { symbol: "AAPL", limit: 10 },
+      { symbol: "MSFT", limit: 10 },
+    ]);
   });
 });
