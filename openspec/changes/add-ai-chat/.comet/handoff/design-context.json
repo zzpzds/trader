@@ -1,0 +1,14 @@
+{
+  "change": "add-ai-chat",
+  "phase": "design",
+  "mode": "compact",
+  "canonical_spec": "openspec",
+  "generated_by": "comet-handoff.sh",
+  "context_hash": "94034c2cab61cd4f2ad4136c06b07acefae8bac9cd60f5d13858bdb70edd1095",
+  "files": [
+    { "path": "openspec/changes/add-ai-chat/proposal.md", "sha256": "15466a74fa041ca82d75b961ec155463cef262c446f7a2c27dc1c3c960bc3f5f" },
+    { "path": "openspec/changes/add-ai-chat/design.md", "sha256": "5a8b10573e52e1594025f1ba32e889c877fe40c8887384022b84f302717bb5f5" },
+    { "path": "openspec/changes/add-ai-chat/tasks.md", "sha256": "5d3543b1630679024bb66a1d4354784cd88c8c69e95bf90f8d12c7e7b0008b29" },
+    { "path": "openspec/changes/add-ai-chat/specs/ai-chat/spec.md", "sha256": "fa5d90d9409e68fc8413f6885668bc5e21aae93232cd04bc910926750341b279" }
+  ]
+}
