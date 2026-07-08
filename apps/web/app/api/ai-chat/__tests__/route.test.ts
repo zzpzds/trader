@@ -1,7 +1,15 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockBuildPortfolioChatContext, mockGetAnthropicConfig, mockCreate } = vi.hoisted(() => ({
+const {
+  mockAnthropicConstructor,
+  mockBuildPortfolioChatContext,
+  mockGetAnthropicConfig,
+  mockCreate,
+} = vi.hoisted(() => ({
+  mockAnthropicConstructor: vi.fn(() => ({
+    messages: { create: mockCreate },
+  })),
   mockBuildPortfolioChatContext: vi.fn(),
   mockGetAnthropicConfig: vi.fn(),
   mockCreate: vi.fn(),
@@ -23,9 +31,7 @@ vi.mock("@/lib/anthropic-config", () => ({
 }));
 
 vi.mock("@anthropic-ai/sdk", () => ({
-  default: vi.fn(() => ({
-    messages: { create: mockCreate },
-  })),
+  default: mockAnthropicConstructor,
 }));
 
 import { POST } from "../route";
@@ -51,7 +57,10 @@ function makeContext() {
 
 describe("POST /api/ai-chat", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    mockAnthropicConstructor.mockImplementation(() => ({
+      messages: { create: mockCreate },
+    }));
     mockBuildPortfolioChatContext.mockResolvedValue(makeContext());
     mockGetAnthropicConfig.mockReturnValue({
       apiKey: "test-key",
@@ -90,11 +99,18 @@ describe("POST /api/ai-chat", () => {
       expect.objectContaining({
         model: "chat-model",
         max_tokens: 2000,
+        system: expect.any(String),
         messages: expect.arrayContaining([
           expect.objectContaining({ role: "assistant", content: "先看一下组合情况。" }),
           expect.objectContaining({ role: "user", content: "现在应该怎么调整仓位？" }),
         ]),
       })
+    );
+
+    const call = mockCreate.mock.calls[0][0];
+    expect(call.system).toContain("中文投资组合问答助手");
+    expect(call.messages).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ role: "system" })])
     );
   });
 
@@ -145,6 +161,59 @@ describe("POST /api/ai-chat", () => {
     await expect(response.json()).resolves.toEqual({ error: "AI Chat 模型配置缺失。" });
     expect(mockBuildPortfolioChatContext).not.toHaveBeenCalled();
     expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("allows undefined baseURL when apiKey is present", async () => {
+    mockGetAnthropicConfig.mockReturnValueOnce({
+      apiKey: "test-key",
+      baseURL: undefined,
+      model: "chat-model",
+    });
+    mockCreate.mockResolvedValueOnce({
+      content: [{ type: "text", text: "可以继续调用。" }],
+    });
+
+    const response = await POST(makeRequest({ question: "你好" }));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ answer: "可以继续调用。" });
+    expect(mockAnthropicConstructor).toHaveBeenCalledWith({
+      apiKey: "test-key",
+      baseURL: undefined,
+    });
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts long history and truncates it before calling the model", async () => {
+    mockCreate.mockResolvedValueOnce({
+      content: [{ type: "text", text: "已截断。" }],
+    });
+
+    const response = await POST(
+      makeRequest({
+        question: "总结最近讨论。",
+        messages: Array.from({ length: 13 }, (_, index) => ({
+          role: "assistant",
+          content: `历史消息 ${index + 1}`,
+        })),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ answer: "已截断。" });
+
+    const call = mockCreate.mock.calls[0][0];
+    expect(call.messages).toHaveLength(14);
+    expect(call.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ role: "assistant", content: "历史消息 2" }),
+        expect.objectContaining({ role: "assistant", content: "历史消息 13" }),
+        expect.objectContaining({ role: "user", content: "总结最近讨论。" }),
+      ])
+    );
+    expect(call.messages).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ content: "历史消息 1" })])
+    );
   });
 
   it("returns 500 when the model call fails", async () => {

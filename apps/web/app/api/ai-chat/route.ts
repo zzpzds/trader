@@ -18,7 +18,6 @@ const requestSchema = z.object({
         content: z.string().max(4000),
       })
     )
-    .max(12)
     .optional(),
 });
 
@@ -35,7 +34,7 @@ export async function POST(request: Request) {
   }
 
   const { apiKey, baseURL, model } = getAnthropicConfig("CHAT");
-  if (!apiKey || !baseURL) {
+  if (!apiKey) {
     return NextResponse.json({ error: "AI Chat 模型配置缺失。" }, { status: 500 });
   }
 
@@ -48,12 +47,18 @@ export async function POST(request: Request) {
       question: parsed.data.question,
       history,
     });
+    const system = messages.find((message) => message.role === "system")?.content;
+    const chatMessages = messages.filter(
+      (message): message is { role: "user" | "assistant"; content: string } =>
+        message.role === "user" || message.role === "assistant"
+    );
 
     const client = new Anthropic({ apiKey, baseURL });
     const completion = await client.messages.create({
       model,
       max_tokens: 2000,
-      messages,
+      ...(system ? { system } : {}),
+      messages: chatMessages,
     });
 
     const answer = completion.content.find((item) => item.type === "text")?.text;
