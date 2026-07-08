@@ -9,6 +9,9 @@ const KEYS = [
   "ANTHROPIC_API_KEY_PARSE",
   "ANTHROPIC_BASE_URL_PARSE",
   "ANTHROPIC_MODEL_PARSE",
+  "ANTHROPIC_API_KEY_CHAT",
+  "ANTHROPIC_BASE_URL_CHAT",
+  "ANTHROPIC_MODEL_CHAT",
 ] as const;
 
 describe("getAnthropicConfig (web)", () => {
@@ -50,6 +53,47 @@ describe("getAnthropicConfig (web)", () => {
       apiKey: "parse-key",
       baseURL: undefined,
       model: "parse-model",
+    });
+  });
+
+  it("uses chat-specific Anthropic env for CHAT scenario", () => {
+    process.env.ANTHROPIC_API_KEY_CHAT = "chat-key";
+    process.env.ANTHROPIC_BASE_URL_CHAT = "https://chat.example.test";
+    process.env.ANTHROPIC_MODEL_CHAT = "chat-model";
+    process.env.ANTHROPIC_API_KEY = "shared-key";
+    process.env.ANTHROPIC_BASE_URL = "https://shared.example.test";
+    process.env.ANTHROPIC_MODEL = "shared-model";
+
+    expect(getAnthropicConfig("CHAT")).toEqual({
+      apiKey: "chat-key",
+      baseURL: "https://chat.example.test",
+      model: "chat-model",
+    });
+  });
+
+  it("falls back from CHAT env to shared env and default model", () => {
+    process.env.ANTHROPIC_API_KEY = "shared-key";
+    process.env.ANTHROPIC_BASE_URL = "https://shared.example.test";
+
+    expect(getAnthropicConfig("CHAT")).toEqual({
+      apiKey: "shared-key",
+      baseURL: "https://shared.example.test",
+      model: "glm-5.1",
+    });
+  });
+
+  it("treats empty CHAT env values as unset", () => {
+    process.env.ANTHROPIC_API_KEY_CHAT = "";
+    process.env.ANTHROPIC_BASE_URL_CHAT = "";
+    process.env.ANTHROPIC_MODEL_CHAT = "";
+    process.env.ANTHROPIC_API_KEY = "shared-key";
+    process.env.ANTHROPIC_BASE_URL = "https://shared.example.test";
+    process.env.ANTHROPIC_MODEL = "shared-model";
+
+    expect(getAnthropicConfig("CHAT")).toEqual({
+      apiKey: "shared-key",
+      baseURL: "https://shared.example.test",
+      model: "shared-model",
     });
   });
 
