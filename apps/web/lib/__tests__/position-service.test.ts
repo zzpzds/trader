@@ -49,6 +49,9 @@ describe("upsertPositionAndCreateLot", () => {
     expect(posInsertValues.values).toHaveBeenCalledWith(
       expect.objectContaining({ referencePrice: "250.00" })
     );
+    expect(lotInsertValues.values).toHaveBeenCalledWith(
+      expect.objectContaining({ shares: "10" })
+    );
   });
 
   it("does not overwrite referencePrice when position already exists", async () => {
@@ -118,17 +121,20 @@ describe("upsertPositionAndCreateLot", () => {
     });
 
     const lotInsertValues = mockValues(mockReturning([
-      { id: "lot-2", positionId: "pos-existing", shares: 50, costPrice: "160.00", lotDate: "2025-02-01" },
+      { id: "lot-2", positionId: "pos-existing", shares: 5, costPrice: "160.00", lotDate: "2025-02-01" },
     ]));
 
     (db.insert as any).mockReturnValue(lotInsertValues);
 
     const result = await upsertPositionAndCreateLot(
-      "strat-1", "QQQ", 50, "160.00", "2025-02-01"
+      "strat-1", "QQQ", 5, "160.00", "2025-02-01"
     );
 
     expect(result.positionId).toBe("pos-existing");
     expect(result.lot.id).toBe("lot-2");
+    expect(lotInsertValues.values).toHaveBeenCalledWith(
+      expect.objectContaining({ shares: "5" })
+    );
   });
 });
 
@@ -218,7 +224,13 @@ describe("recordSell", () => {
     expect(r.positionId).toBe("p1");
     expect(r.lot.id).toBe("sell-1");
     expect(lotInsert.values).toHaveBeenCalledWith(
-      expect.objectContaining({ positionId: "p1", type: "SELL", costPrice: "150", lotDate: "2026-05-02" })
+      expect.objectContaining({
+        positionId: "p1",
+        type: "SELL",
+        shares: "5",
+        costPrice: "150",
+        lotDate: "2026-05-02",
+      })
     );
   });
 });

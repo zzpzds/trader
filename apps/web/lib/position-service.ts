@@ -36,7 +36,7 @@ export async function upsertPositionAndCreateLot(
 
   const [lot] = await db
     .insert(positionLots)
-    .values({ positionId, type: "BUY", shares, costPrice, lotDate, notes: notes ?? null })
+    .values({ positionId, type: "BUY", shares: String(shares), costPrice, lotDate, notes: notes ?? null })
     .returning();
 
   return { positionId, lot };
@@ -110,7 +110,7 @@ export async function recordSell(
     .values({
       positionId: position.id,
       type: "SELL",
-      shares,
+      shares: String(shares),
       costPrice: price,
       lotDate: sellDate,
       notes: notes ?? null,
