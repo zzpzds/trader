@@ -1,6 +1,8 @@
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import {
   memories,
+  positionLots,
+  positions,
   priceSnapshots,
   type MemoryRow,
   type PositionLotRow,
@@ -26,10 +28,15 @@ const INVALID_PRICE_LIMITATION = "存在无效价格快照，已跳过部分价�
 
 type RecentPriceRow = Pick<PriceSnapshotRow, "symbol" | "date" | "close">;
 
+export type OpenPositionCandidateRow = Pick<
+  PositionRow,
+  "id" | "strategyId" | "symbol" | "referencePrice" | "updatedAt"
+>;
+
 export interface AiChatRepository {
   listStrategies(): Promise<StrategyRow[]>;
-  listPositions(): Promise<PositionRow[]>;
-  listLots(): Promise<PositionLotRow[]>;
+  listOpenPositionCandidates(args: { limit: number }): Promise<OpenPositionCandidateRow[]>;
+  listLotsForPositions(positionIds: string[]): Promise<PositionLotRow[]>;
   listRecentPrices(symbols: string[]): Promise<Record<string, RecentPriceRow[]>>;
   listMemories(args: {
     symbols: string[];
@@ -194,14 +201,41 @@ export function createDbAiChatRepository(): AiChatRepository {
         limit: STRATEGY_LIMIT,
       });
     },
-    async listPositions() {
-      return db.query.positions.findMany({
-        orderBy: (table, { desc: descFn }) => [descFn(table.updatedAt)],
-      });
+    async listOpenPositionCandidates({ limit }) {
+      const netShares = sql<string>`
+        sum(
+          case
+            when ${positionLots.type} = 'BUY' then ${positionLots.shares}
+            else -${positionLots.shares}
+          end
+        )
+      `;
+      return db
+        .select({
+          id: positions.id,
+          strategyId: positions.strategyId,
+          symbol: positions.symbol,
+          referencePrice: positions.referencePrice,
+          updatedAt: positions.updatedAt,
+        })
+        .from(positions)
+        .innerJoin(positionLots, eq(positionLots.positionId, positions.id))
+        .groupBy(
+          positions.id,
+          positions.strategyId,
+          positions.symbol,
+          positions.referencePrice,
+          positions.updatedAt
+        )
+        .having(sql`${netShares} > 0`)
+        .orderBy(desc(positions.updatedAt), desc(positions.id))
+        .limit(limit);
     },
-    async listLots() {
+    async listLotsForPositions(positionIds) {
+      if (positionIds.length === 0) return [];
       return db.query.positionLots.findMany({
-        orderBy: (table, { asc }) => [asc(table.lotDate), asc(table.createdAt)],
+        where: inArray(positionLots.positionId, positionIds),
+        orderBy: [asc(positionLots.lotDate), asc(positionLots.createdAt)],
       });
     },
     async listRecentPrices(symbols) {
@@ -268,8 +302,19 @@ export async function buildPortfolioChatContext(args?: {
   const now = args?.now ?? new Date();
 
   const strategyRows = (await repo.listStrategies()).slice(0, STRATEGY_LIMIT);
-  const positionRows = await repo.listPositions();
-  const lotRows = await repo.listLots();
+  const openPositionCandidateRows = await repo.listOpenPositionCandidates({
+    limit: POSITION_CONTEXT_LIMIT + 1,
+  });
+  const selectedOpenPositionRows = [...openPositionCandidateRows]
+    .sort(
+      (left, right) =>
+        normalizeTimestamp(right.updatedAt) - normalizeTimestamp(left.updatedAt) ||
+        right.id.localeCompare(left.id)
+    )
+    .slice(0, POSITION_CONTEXT_LIMIT);
+  const lotRows = await repo.listLotsForPositions(
+    selectedOpenPositionRows.map((position) => position.id)
+  );
 
   const strategyNameById = new Map(strategyRows.map((strategy) => [strategy.id, strategy.name]));
   const lotsByPositionId = new Map<string, PositionLotRow[]>();
@@ -291,7 +336,7 @@ export async function buildPortfolioChatContext(args?: {
     for (const symbol of strategy.symbols) symbols.add(symbol);
   }
 
-  const openPositionCandidates = positionRows
+  const openPositionCandidates = selectedOpenPositionRows
     .map((position) => {
       const txns: Txn[] = (lotsByPositionId.get(position.id) ?? []).map((lot) => ({
         id: lot.id,
@@ -320,10 +365,10 @@ export async function buildPortfolioChatContext(args?: {
 
   const limitations = [FIXED_PRICE_LIMITATION];
   const positionsContext = openPositionCandidates
-    .sort((left, right) => right.updatedAt - left.updatedAt)
+    .sort((left, right) => right.updatedAt - left.updatedAt || right.id.localeCompare(left.id))
     .slice(0, POSITION_CONTEXT_LIMIT)
     .map(({ updatedAt: _updatedAt, ...position }) => position);
-  if (openPositionCandidates.length > POSITION_CONTEXT_LIMIT) {
+  if (openPositionCandidateRows.length > POSITION_CONTEXT_LIMIT) {
     limitations.push(`未关闭持仓过多，仅包含前 ${POSITION_CONTEXT_LIMIT} 条持仓上下文。`);
   }
   for (const position of positionsContext) {

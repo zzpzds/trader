@@ -1,6 +1,10 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildPortfolioChatContext, type AiChatRepository } from "./context";
+import {
+  buildPortfolioChatContext,
+  type AiChatRepository,
+  type OpenPositionCandidateRow,
+} from "./context";
 
 afterEach(() => {
   vi.resetAllMocks();
@@ -9,10 +13,38 @@ afterEach(() => {
   vi.unmock("drizzle-orm");
 });
 
+function makeRepo(args: {
+  strategies?: Awaited<ReturnType<AiChatRepository["listStrategies"]>>;
+  openPositions?: OpenPositionCandidateRow[];
+  lots?: Awaited<ReturnType<AiChatRepository["listLotsForPositions"]>>;
+  recentPrices?: Awaited<ReturnType<AiChatRepository["listRecentPrices"]>>;
+  memories?: Awaited<ReturnType<AiChatRepository["listMemories"]>>;
+  onListLotsForPositions?: (positionIds: string[]) => void;
+}): AiChatRepository {
+  return {
+    listStrategies: async () => args.strategies ?? [],
+    listOpenPositionCandidates: async ({ limit }) =>
+      [...(args.openPositions ?? [])]
+        .sort(
+          (left, right) =>
+            new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime()
+        )
+        .slice(0, limit),
+    listLotsForPositions: async (positionIds) => {
+      args.onListLotsForPositions?.(positionIds);
+      const positionIdsSet = new Set(positionIds);
+      return (args.lots ?? []).filter((lot) => positionIdsSet.has(lot.positionId));
+    },
+    listRecentPrices: async (symbols) =>
+      Object.fromEntries(symbols.map((symbol) => [symbol, args.recentPrices?.[symbol] ?? []])),
+    listMemories: async () => args.memories ?? [],
+  };
+}
+
 describe("buildPortfolioChatContext", () => {
   it("builds context from strategies, open positions, prices, lots, and memories", async () => {
-    const repo: AiChatRepository = {
-      listStrategies: async () => [
+    const repo = makeRepo({
+      strategies: [
         {
           id: "s1",
           name: "趋势策略",
@@ -22,17 +54,16 @@ describe("buildPortfolioChatContext", () => {
           updatedAt: new Date("2026-07-07T00:00:00Z"),
         },
       ],
-      listPositions: async () => [
+      openPositions: [
         {
           id: "p1",
           strategyId: "s1",
           symbol: "AAPL",
           referencePrice: "180.0000",
-          createdAt: new Date("2026-07-01T00:00:00Z"),
           updatedAt: new Date("2026-07-08T00:00:00Z"),
         },
       ],
-      listLots: async () => [
+      lots: [
         {
           id: "l1",
           positionId: "p1",
@@ -44,13 +75,13 @@ describe("buildPortfolioChatContext", () => {
           createdAt: new Date("2026-07-01T00:00:00Z"),
         },
       ],
-      listRecentPrices: async () => ({
+      recentPrices: {
         AAPL: [
           { symbol: "AAPL", date: "2026-07-08", close: "190.0000" },
           { symbol: "AAPL", date: "2026-07-07", close: "188.0000" },
         ],
-      }),
-      listMemories: async () => [
+      },
+      memories: [
         {
           id: "m1",
           title: "AAPL 复盘",
@@ -64,7 +95,7 @@ describe("buildPortfolioChatContext", () => {
           updatedAt: new Date("2026-07-08T00:00:00Z"),
         },
       ],
-    };
+    });
 
     const context = await buildPortfolioChatContext({
       repo,
@@ -94,48 +125,18 @@ describe("buildPortfolioChatContext", () => {
     expect(context.limitations).toContain("价格来自系统已有快照，不保证实时。");
   });
 
-  it("filters closed positions and records missing latest price limitations", async () => {
-    const repo: AiChatRepository = {
-      listStrategies: async () => [],
-      listPositions: async () => [
-        {
-          id: "closed",
-          strategyId: null,
-          symbol: "AAPL",
-          referencePrice: null,
-          createdAt: new Date("2026-07-01T00:00:00Z"),
-          updatedAt: new Date("2026-07-08T00:00:00Z"),
-        },
+  it("records missing latest price limitations for returned open positions", async () => {
+    const repo = makeRepo({
+      openPositions: [
         {
           id: "open",
           strategyId: null,
           symbol: "MSFT",
           referencePrice: null,
-          createdAt: new Date("2026-07-01T00:00:00Z"),
           updatedAt: new Date("2026-07-08T00:00:00Z"),
         },
       ],
-      listLots: async () => [
-        {
-          id: "l1",
-          positionId: "closed",
-          type: "BUY",
-          shares: "5",
-          costPrice: "100",
-          lotDate: "2026-07-01",
-          notes: null,
-          createdAt: new Date("2026-07-01T00:00:00Z"),
-        },
-        {
-          id: "l2",
-          positionId: "closed",
-          type: "SELL",
-          shares: "5",
-          costPrice: "110",
-          lotDate: "2026-07-02",
-          notes: null,
-          createdAt: new Date("2026-07-02T00:00:00Z"),
-        },
+      lots: [
         {
           id: "l3",
           positionId: "open",
@@ -147,12 +148,10 @@ describe("buildPortfolioChatContext", () => {
           createdAt: new Date("2026-07-01T00:00:00Z"),
         },
       ],
-      listRecentPrices: async () => ({
-        AAPL: [{ symbol: "AAPL", date: "2026-07-08", close: "111" }],
+      recentPrices: {
         MSFT: [],
-      }),
-      listMemories: async () => [],
-    };
+      },
+    });
 
     const context = await buildPortfolioChatContext({
       repo,
@@ -166,15 +165,14 @@ describe("buildPortfolioChatContext", () => {
       latestPrice: null,
       unrealizedPnl: null,
     });
-    expect(context.positions.find((position) => position.symbol === "AAPL")).toBeUndefined();
     expect(context.limitations).toContain("MSFT 缺少最新可用价格快照");
     expect(context.limitations).toContain("价格来自系统已有快照，不保证实时。");
   });
 
   it("caps memories at 12 items and 6000 chars while keeping pinned memories first", async () => {
     const long = "L".repeat(1500);
-    const repo: AiChatRepository = {
-      listStrategies: async () => [
+    const repo = makeRepo({
+      strategies: [
         {
           id: "s1",
           name: "趋势策略",
@@ -184,17 +182,16 @@ describe("buildPortfolioChatContext", () => {
           updatedAt: new Date("2026-07-08T00:00:00Z"),
         },
       ],
-      listPositions: async () => [
+      openPositions: [
         {
           id: "p1",
           strategyId: "s1",
           symbol: "AAPL",
           referencePrice: null,
-          createdAt: new Date("2026-07-01T00:00:00Z"),
           updatedAt: new Date("2026-07-08T00:00:00Z"),
         },
       ],
-      listLots: async () => [
+      lots: [
         {
           id: "l1",
           positionId: "p1",
@@ -206,10 +203,10 @@ describe("buildPortfolioChatContext", () => {
           createdAt: new Date("2026-07-01T00:00:00Z"),
         },
       ],
-      listRecentPrices: async () => ({
+      recentPrices: {
         AAPL: [{ symbol: "AAPL", date: "2026-07-08", close: "120" }],
-      }),
-      listMemories: async () =>
+      },
+      memories:
         Array.from({ length: 14 }, (_, index) => ({
           id: `m${index + 1}`,
           title: `memory-${index + 1}`,
@@ -222,7 +219,7 @@ describe("buildPortfolioChatContext", () => {
           createdAt: new Date(`2026-07-${String(index + 1).padStart(2, "0")}T00:00:00Z`),
           updatedAt: new Date(`2026-07-${String(index + 1).padStart(2, "0")}T00:00:00Z`),
         })),
-    };
+    });
 
     const context = await buildPortfolioChatContext({
       repo,
@@ -237,22 +234,20 @@ describe("buildPortfolioChatContext", () => {
     ).toBeLessThanOrEqual(6000);
   });
 
-  it("trims open positions context when position count exceeds the limit", async () => {
-    const repo: AiChatRepository = {
-      listStrategies: async () => [],
-      listPositions: async () =>
-        Array.from({ length: 55 }, (_, index) => ({
-          id: `p${index + 1}`,
+  it("requests lots only for bounded open positions and records the truncation limitation", async () => {
+    const requestedPositionIds: string[][] = [];
+    const repo = makeRepo({
+      openPositions: Array.from({ length: 55 }, (_, index) => ({
+          id: `p${String(index + 1).padStart(2, "0")}`,
           strategyId: null,
           symbol: `SYM${String(index + 1).padStart(2, "0")}`,
           referencePrice: null,
-          createdAt: new Date(`2026-07-${String((index % 9) + 1).padStart(2, "0")}T00:00:00Z`),
-          updatedAt: new Date(`2026-07-${String((index % 9) + 1).padStart(2, "0")}T12:00:00Z`),
+          updatedAt: new Date(Date.UTC(2026, 6, 1, 0, index)),
         })),
-      listLots: async () =>
+      lots:
         Array.from({ length: 55 }, (_, index) => ({
           id: `l${index + 1}`,
-          positionId: `p${index + 1}`,
+          positionId: `p${String(index + 1).padStart(2, "0")}`,
           type: "BUY",
           shares: "1",
           costPrice: "100",
@@ -260,15 +255,18 @@ describe("buildPortfolioChatContext", () => {
           notes: null,
           createdAt: new Date("2026-07-01T00:00:00Z"),
         })),
-      listRecentPrices: async (symbols) =>
-        Object.fromEntries(
-          symbols.map((symbol) => [
-            symbol,
-            [{ symbol, date: "2026-07-08", close: "101" }],
-          ])
-        ),
-      listMemories: async () => [],
-    };
+      recentPrices: Object.fromEntries(
+        Array.from({ length: 55 }, (_, index) => {
+          const symbol = `SYM${String(index + 1).padStart(2, "0")}`;
+          return [symbol, [{ symbol, date: "2026-07-08", close: "101" }]];
+        })
+      ),
+      onListLotsForPositions: (positionIds) => {
+        requestedPositionIds.push(positionIds);
+        expect(positionIds).not.toContain("p05");
+        expect(positionIds).not.toContain("p01");
+      },
+    });
 
     const context = await buildPortfolioChatContext({
       repo,
@@ -276,24 +274,26 @@ describe("buildPortfolioChatContext", () => {
     });
 
     expect(context.positions).toHaveLength(50);
-    expect(context.positions.map((position) => position.symbol)).not.toContain("SYM55");
+    expect(requestedPositionIds).toEqual([
+      Array.from({ length: 50 }, (_, index) => `p${String(55 - index).padStart(2, "0")}`),
+    ]);
+    expect(context.positions.map((position) => position.symbol)).not.toContain("SYM05");
+    expect(context.positions.map((position) => position.symbol)).not.toContain("SYM01");
     expect(context.limitations).toContain("未关闭持仓过多，仅包含前 50 条持仓上下文。");
   });
 
   it("skips invalid price snapshots instead of rendering them as 0", async () => {
-    const repo: AiChatRepository = {
-      listStrategies: async () => [],
-      listPositions: async () => [
+    const repo = makeRepo({
+      openPositions: [
         {
           id: "p1",
           strategyId: null,
           symbol: "AAPL",
           referencePrice: null,
-          createdAt: new Date("2026-07-01T00:00:00Z"),
           updatedAt: new Date("2026-07-08T00:00:00Z"),
         },
       ],
-      listLots: async () => [
+      lots: [
         {
           id: "l1",
           positionId: "p1",
@@ -305,14 +305,13 @@ describe("buildPortfolioChatContext", () => {
           createdAt: new Date("2026-07-01T00:00:00Z"),
         },
       ],
-      listRecentPrices: async () => ({
+      recentPrices: {
         AAPL: [
           { symbol: "AAPL", date: "2026-07-08", close: "bad" },
           { symbol: "AAPL", date: "2026-07-07", close: "190" },
         ],
-      }),
-      listMemories: async () => [],
-    };
+      },
+    });
 
     const context = await buildPortfolioChatContext({
       repo,
@@ -335,8 +334,8 @@ describe("buildPortfolioChatContext", () => {
   });
 
   it("keeps old but relevant symbol and strategy memories ahead of recent unrelated memories", async () => {
-    const repo: AiChatRepository = {
-      listStrategies: async () => [
+    const repo = makeRepo({
+      strategies: [
         {
           id: "s1",
           name: "趋势策略",
@@ -346,17 +345,16 @@ describe("buildPortfolioChatContext", () => {
           updatedAt: new Date("2026-07-08T00:00:00Z"),
         },
       ],
-      listPositions: async () => [
+      openPositions: [
         {
           id: "p1",
           strategyId: "s1",
           symbol: "AAPL",
           referencePrice: null,
-          createdAt: new Date("2026-07-01T00:00:00Z"),
           updatedAt: new Date("2026-07-08T00:00:00Z"),
         },
       ],
-      listLots: async () => [
+      lots: [
         {
           id: "l1",
           positionId: "p1",
@@ -368,10 +366,10 @@ describe("buildPortfolioChatContext", () => {
           createdAt: new Date("2026-07-01T00:00:00Z"),
         },
       ],
-      listRecentPrices: async () => ({
+      recentPrices: {
         AAPL: [{ symbol: "AAPL", date: "2026-07-08", close: "120" }],
-      }),
-      listMemories: async () => [
+      },
+      memories: [
         {
           id: "m-old-symbol",
           title: "老的 symbol 记忆",
@@ -409,7 +407,7 @@ describe("buildPortfolioChatContext", () => {
           updatedAt: new Date(`2026-07-${String(index + 1).padStart(2, "0")}T00:00:00Z`),
         })),
       ],
-    };
+    });
 
     const context = await buildPortfolioChatContext({
       repo,
@@ -513,7 +511,6 @@ describe("buildPortfolioChatContext", () => {
       db: {
         query: {
           strategies: { findMany: vi.fn() },
-          positions: { findMany: vi.fn() },
           positionLots: { findMany: vi.fn() },
           memories: { findMany },
         },
@@ -535,6 +532,89 @@ describe("buildPortfolioChatContext", () => {
       "m-strategy",
       "m-global",
     ]);
+  });
+
+  it("limits open position candidate queries in the repository layer", async () => {
+    const queryCalls: Array<{ limit?: number }> = [];
+
+    vi.doMock("drizzle-orm", async () => {
+      const actual = await vi.importActual<typeof import("drizzle-orm")>("drizzle-orm");
+      return {
+        ...actual,
+        desc: (value: unknown) => value,
+        eq: vi.fn((_left: unknown, _right: unknown) => ({ type: "eq" })),
+        sql: (() => ({ raw: "net_shares" })) as unknown as typeof actual.sql,
+      };
+    });
+
+    vi.doMock("@/lib/db", () => ({
+      db: {
+        select: vi.fn(() => ({
+          from: vi.fn(() => ({
+            innerJoin: vi.fn(() => ({
+              groupBy: vi.fn(() => ({
+                having: vi.fn(() => ({
+                  orderBy: vi.fn(() => ({
+                    limit: vi.fn(async (value: number) => {
+                      queryCalls.push({ limit: value });
+                      return [];
+                    }),
+                  })),
+                })),
+              })),
+            })),
+          })),
+        })),
+        query: {
+          strategies: { findMany: vi.fn() },
+          positionLots: { findMany: vi.fn() },
+          memories: { findMany: vi.fn() },
+        },
+      },
+    }));
+
+    const { createDbAiChatRepository } = await import("./context");
+    const repo = createDbAiChatRepository();
+
+    await repo.listOpenPositionCandidates({ limit: 51 });
+
+    expect(queryCalls).toEqual([{ limit: 51 }]);
+  });
+
+  it("scopes lot queries to the requested position ids in the repository layer", async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const inArrayMock = vi.fn((_column: unknown, positionIds: string[]) => ({ positionIds }));
+
+    vi.doMock("drizzle-orm", async () => {
+      const actual = await vi.importActual<typeof import("drizzle-orm")>("drizzle-orm");
+      return {
+        ...actual,
+        asc: (value: unknown) => value,
+        inArray: inArrayMock,
+      };
+    });
+
+    vi.doMock("@/lib/db", () => ({
+      db: {
+        query: {
+          strategies: { findMany: vi.fn() },
+          positionLots: { findMany },
+          memories: { findMany: vi.fn() },
+        },
+      },
+    }));
+
+    const { createDbAiChatRepository } = await import("./context");
+    const repo = createDbAiChatRepository();
+
+    await repo.listLotsForPositions(["p1", "p2"]);
+
+    expect(inArrayMock).toHaveBeenCalledTimes(1);
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { positionIds: ["p1", "p2"] },
+      })
+    );
   });
 
   it("limits recent price queries to 10 rows per symbol in repository layer", async () => {
@@ -579,7 +659,6 @@ describe("buildPortfolioChatContext", () => {
         })),
         query: {
           strategies: { findMany: vi.fn() },
-          positions: { findMany: vi.fn() },
           positionLots: { findMany: vi.fn() },
           memories: { findMany: vi.fn() },
         },
