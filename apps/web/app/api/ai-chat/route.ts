@@ -9,6 +9,9 @@ import {
 } from "@/lib/ai-chat/prompt";
 import { getAnthropicConfig } from "@/lib/anthropic-config";
 
+const MAX_REQUEST_BODY_BYTES = 128 * 1024;
+const MAX_HISTORY_INPUT_MESSAGES = 24;
+
 const requestSchema = z.object({
   question: z.string().trim().min(1).max(4000),
   messages: z
@@ -18,10 +21,20 @@ const requestSchema = z.object({
         content: z.string().max(4000),
       })
     )
+    .max(MAX_HISTORY_INPUT_MESSAGES, "历史消息过多，请精简后重试。")
     .optional(),
 });
 
 export async function POST(request: Request) {
+  const contentLengthHeader = request.headers.get("content-length");
+  const contentLength = contentLengthHeader ? Number.parseInt(contentLengthHeader, 10) : Number.NaN;
+  if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BODY_BYTES) {
+    return NextResponse.json(
+      { error: "请求体过大，请减少问题或历史消息后重试。" },
+      { status: 413 }
+    );
+  }
+
   const body = await request.json().catch(() => null);
 
   if (typeof body?.question === "string" && body.question.trim().length === 0) {
@@ -30,7 +43,10 @@ export async function POST(request: Request) {
 
   const parsed = requestSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "请求参数不合法。" }, { status: 400 });
+    const message =
+      parsed.error.issues.find((issue) => issue.path[0] === "messages")?.message ??
+      "请求参数不合法。";
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 
   const { apiKey, baseURL, model } = getAnthropicConfig("CHAT");

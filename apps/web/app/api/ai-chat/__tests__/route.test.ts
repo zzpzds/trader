@@ -36,10 +36,18 @@ vi.mock("@anthropic-ai/sdk", () => ({
 
 import { POST } from "../route";
 
-function makeRequest(body: unknown) {
+function makeRequest(
+  body: unknown,
+  options?: {
+    headers?: Record<string, string>;
+  }
+) {
   return new Request("http://localhost/api/ai-chat", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(options?.headers ?? {}),
+    },
     body: JSON.stringify(body),
   });
 }
@@ -214,6 +222,45 @@ describe("POST /api/ai-chat", () => {
     expect(call.messages).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ content: "历史消息 1" })])
     );
+  });
+
+  it("returns 413 when content-length exceeds the limit before parsing json", async () => {
+    const request = {
+      headers: new Headers({
+        "Content-Type": "application/json",
+        "Content-Length": "200000",
+      }),
+      json: vi.fn(async () => ({ question: "你好" })),
+    } as unknown as Request;
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(413);
+    await expect(response.json()).resolves.toEqual({
+      error: "请求体过大，请减少问题或历史消息后重试。",
+    });
+    expect(request.json).not.toHaveBeenCalled();
+    expect(mockBuildPortfolioChatContext).not.toHaveBeenCalled();
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when history message count exceeds the schema limit", async () => {
+    const response = await POST(
+      makeRequest({
+        question: "总结最近讨论。",
+        messages: Array.from({ length: 25 }, (_, index) => ({
+          role: "assistant",
+          content: `历史消息 ${index + 1}`,
+        })),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "历史消息过多，请精简后重试。",
+    });
+    expect(mockBuildPortfolioChatContext).not.toHaveBeenCalled();
+    expect(mockCreate).not.toHaveBeenCalled();
   });
 
   it("returns 500 when the model call fails", async () => {

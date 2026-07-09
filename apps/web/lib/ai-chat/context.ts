@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import {
   memories,
   priceSnapshots,
@@ -13,10 +13,16 @@ import { replayPosition, type Txn, type TxnType } from "@/lib/pnl";
 
 const STRATEGY_LIMIT = 20;
 const STRATEGY_CONTENT_LIMIT = 1200;
+const POSITION_CONTEXT_LIMIT = 50;
 const PRICES_PER_SYMBOL_LIMIT = 10;
 const MEMORY_LIMIT = 12;
 const MEMORY_CONTENT_LIMIT = 6000;
+const PINNED_MEMORY_BUCKET_LIMIT = 12;
+const SYMBOL_MEMORY_BUCKET_LIMIT = 12;
+const STRATEGY_MEMORY_BUCKET_LIMIT = 12;
+const GLOBAL_MEMORY_BUCKET_LIMIT = 12;
 const FIXED_PRICE_LIMITATION = "价格来自系统已有快照，不保证实时。";
+const INVALID_PRICE_LIMITATION = "存在无效价格快照，已跳过部分价格数据。";
 
 type RecentPriceRow = Pick<PriceSnapshotRow, "symbol" | "date" | "close">;
 
@@ -117,6 +123,69 @@ function buildMemoryScore(
   return score;
 }
 
+function normalizeTimestamp(value: Date | string): number {
+  return new Date(value).getTime();
+}
+
+function mergeMemoryBuckets(buckets: MemoryRow[][]): MemoryRow[] {
+  const merged: MemoryRow[] = [];
+  const seen = new Set<string>();
+
+  for (const bucket of buckets) {
+    for (const memory of bucket) {
+      if (seen.has(memory.id)) continue;
+      seen.add(memory.id);
+      merged.push(memory);
+    }
+  }
+
+  return merged;
+}
+
+function sortMemoriesByRecency(memories: MemoryRow[]): MemoryRow[] {
+  return [...memories].sort(
+    (left, right) => normalizeTimestamp(right.updatedAt) - normalizeTimestamp(left.updatedAt)
+  );
+}
+
+function selectMemoriesByBucket(
+  memoryRows: MemoryRow[],
+  relevantSymbols: Set<string>,
+  relevantStrategies: Set<string>
+): MemoryRow[] {
+  const pinned = sortMemoriesByRecency(memoryRows.filter((memory) => memory.pinned));
+  const symbol = sortMemoriesByRecency(
+    memoryRows.filter(
+      (memory) => !memory.pinned && !!memory.symbol && relevantSymbols.has(memory.symbol)
+    )
+  );
+  const strategy = sortMemoriesByRecency(
+    memoryRows.filter(
+      (memory) =>
+        !memory.pinned &&
+        !memory.symbol &&
+        !!memory.strategyId &&
+        relevantStrategies.has(memory.strategyId)
+    )
+  );
+  const recentGlobal = sortMemoriesByRecency(
+    memoryRows.filter(
+      (memory) => !memory.pinned && memory.symbol == null && memory.strategyId == null
+    )
+  );
+  const fallback = sortMemoriesByRecency(
+    memoryRows.filter(
+      (memory) =>
+        !memory.pinned &&
+        !(memory.symbol && relevantSymbols.has(memory.symbol)) &&
+        !(memory.strategyId && relevantStrategies.has(memory.strategyId)) &&
+        !(memory.symbol == null && memory.strategyId == null)
+    )
+  );
+
+  return mergeMemoryBuckets([pinned, symbol, strategy, recentGlobal, fallback]);
+}
+
 export function createDbAiChatRepository(): AiChatRepository {
   return {
     async listStrategies() {
@@ -154,10 +223,39 @@ export function createDbAiChatRepository(): AiChatRepository {
       return grouped;
     },
     async listMemories({ symbols, strategyIds }) {
-      return db.query.memories.findMany({
-        orderBy: (table, { desc: descFn }) => [descFn(table.pinned), descFn(table.updatedAt)],
-        limit: 48,
+      const pinnedMemories = await db.query.memories.findMany({
+        where: eq(memories.pinned, true),
+        orderBy: (table, { desc: descFn }) => [descFn(table.updatedAt)],
+        limit: PINNED_MEMORY_BUCKET_LIMIT,
       });
+      const symbolMemories =
+        symbols.length === 0
+          ? []
+          : await db.query.memories.findMany({
+              where: inArray(memories.symbol, symbols),
+              orderBy: (table, { desc: descFn }) => [descFn(table.updatedAt)],
+              limit: SYMBOL_MEMORY_BUCKET_LIMIT,
+            });
+      const strategyMemories =
+        strategyIds.length === 0
+          ? []
+          : await db.query.memories.findMany({
+              where: inArray(memories.strategyId, strategyIds),
+              orderBy: (table, { desc: descFn }) => [descFn(table.updatedAt)],
+              limit: STRATEGY_MEMORY_BUCKET_LIMIT,
+            });
+      const globalMemories = await db.query.memories.findMany({
+        where: and(isNull(memories.symbol), isNull(memories.strategyId)),
+        orderBy: (table, { desc: descFn }) => [descFn(table.updatedAt)],
+        limit: GLOBAL_MEMORY_BUCKET_LIMIT,
+      });
+
+      return mergeMemoryBuckets([
+        pinnedMemories,
+        symbolMemories,
+        strategyMemories,
+        globalMemories,
+      ]);
     },
   };
 }
@@ -193,7 +291,7 @@ export async function buildPortfolioChatContext(args?: {
     for (const symbol of strategy.symbols) symbols.add(symbol);
   }
 
-  const positionsContext = positionRows
+  const openPositionCandidates = positionRows
     .map((position) => {
       const txns: Txn[] = (lotsByPositionId.get(position.id) ?? []).map((lot) => ({
         id: lot.id,
@@ -205,7 +303,6 @@ export async function buildPortfolioChatContext(args?: {
       }));
       const state = replayPosition(txns);
       if (!(state.heldShares > 0)) return null;
-      symbols.add(position.symbol);
       return {
         id: position.id,
         strategyId: position.strategyId,
@@ -216,25 +313,48 @@ export async function buildPortfolioChatContext(args?: {
         averageCost: state.avgCost,
         latestPrice: null as number | null,
         unrealizedPnl: null as number | null,
+        updatedAt: normalizeTimestamp(position.updatedAt),
       };
     })
     .filter((position): position is NonNullable<typeof position> => position !== null);
 
+  const limitations = [FIXED_PRICE_LIMITATION];
+  const positionsContext = openPositionCandidates
+    .sort((left, right) => right.updatedAt - left.updatedAt)
+    .slice(0, POSITION_CONTEXT_LIMIT)
+    .map(({ updatedAt: _updatedAt, ...position }) => position);
+  if (openPositionCandidates.length > POSITION_CONTEXT_LIMIT) {
+    limitations.push(`未关闭持仓过多，仅包含前 ${POSITION_CONTEXT_LIMIT} 条持仓上下文。`);
+  }
+  for (const position of positionsContext) {
+    symbols.add(position.symbol);
+  }
+
   const symbolList = [...symbols];
   const recentPricesBySymbol = await repo.listRecentPrices(symbolList);
-  const limitations = [FIXED_PRICE_LIMITATION];
 
   const pricesContext = symbolList
     .sort((left, right) => left.localeCompare(right))
     .map((symbol) => {
       const recentRows = (recentPricesBySymbol[symbol] ?? []).slice(0, PRICES_PER_SYMBOL_LIMIT);
+      let skippedInvalidRows = false;
       const recentCloses = recentRows
-        .map((row) => ({
-          date: formatPriceDate(row.date),
-          close: toNumber(row.close) ?? 0,
-        }))
-        .filter((row) => Number.isFinite(row.close));
+        .map((row) => {
+          const close = toNumber(row.close);
+          if (close == null) {
+            skippedInvalidRows = true;
+            return null;
+          }
+          return {
+            date: formatPriceDate(row.date),
+            close,
+          };
+        })
+        .filter((row): row is { date: string; close: number } => row !== null);
       const latestClose = recentCloses[0]?.close ?? null;
+      if (skippedInvalidRows) {
+        limitations.push(`${symbol} ${INVALID_PRICE_LIMITATION}`);
+      }
       return {
         symbol,
         latestClose,
@@ -265,10 +385,14 @@ export async function buildPortfolioChatContext(args?: {
   });
   const relevantSymbols = new Set(symbolList);
   const relevantStrategies = new Set(relevantStrategyIds);
-  const sortedMemories = [...memoryRows].sort(
-    (left, right) =>
-      buildMemoryScore(right, relevantSymbols, relevantStrategies) -
-      buildMemoryScore(left, relevantSymbols, relevantStrategies)
+  const sortedMemories = selectMemoriesByBucket(
+    [...memoryRows].sort(
+      (left, right) =>
+        buildMemoryScore(right, relevantSymbols, relevantStrategies) -
+        buildMemoryScore(left, relevantSymbols, relevantStrategies)
+    ),
+    relevantSymbols,
+    relevantStrategies
   );
 
   const memoriesContext: PortfolioChatContext["memories"] = [];

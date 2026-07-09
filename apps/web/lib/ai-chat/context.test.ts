@@ -237,38 +237,264 @@ describe("buildPortfolioChatContext", () => {
     ).toBeLessThanOrEqual(6000);
   });
 
-  it("includes recent global memories in repository candidates", async () => {
-    const findMany = vi.fn(async (args?: { where?: unknown }) => {
-      if (args?.where) {
-        return [
-          {
-            id: "m-targeted",
-            title: "策略复盘",
-            content: "与策略直接相关。",
-            kind: "lesson",
-            strategyId: "s1",
-            symbol: null,
-            tags: [],
-            pinned: false,
-            createdAt: new Date("2026-07-07T00:00:00Z"),
-            updatedAt: new Date("2026-07-07T00:00:00Z"),
-          },
-        ];
-      }
+  it("trims open positions context when position count exceeds the limit", async () => {
+    const repo: AiChatRepository = {
+      listStrategies: async () => [],
+      listPositions: async () =>
+        Array.from({ length: 55 }, (_, index) => ({
+          id: `p${index + 1}`,
+          strategyId: null,
+          symbol: `SYM${String(index + 1).padStart(2, "0")}`,
+          referencePrice: null,
+          createdAt: new Date(`2026-07-${String((index % 9) + 1).padStart(2, "0")}T00:00:00Z`),
+          updatedAt: new Date(`2026-07-${String((index % 9) + 1).padStart(2, "0")}T12:00:00Z`),
+        })),
+      listLots: async () =>
+        Array.from({ length: 55 }, (_, index) => ({
+          id: `l${index + 1}`,
+          positionId: `p${index + 1}`,
+          type: "BUY",
+          shares: "1",
+          costPrice: "100",
+          lotDate: "2026-07-01",
+          notes: null,
+          createdAt: new Date("2026-07-01T00:00:00Z"),
+        })),
+      listRecentPrices: async (symbols) =>
+        Object.fromEntries(
+          symbols.map((symbol) => [
+            symbol,
+            [{ symbol, date: "2026-07-08", close: "101" }],
+          ])
+        ),
+      listMemories: async () => [],
+    };
 
-      return [
+    const context = await buildPortfolioChatContext({
+      repo,
+      now: new Date("2026-07-08T10:00:00Z"),
+    });
+
+    expect(context.positions).toHaveLength(50);
+    expect(context.positions.map((position) => position.symbol)).not.toContain("SYM55");
+    expect(context.limitations).toContain("未关闭持仓过多，仅包含前 50 条持仓上下文。");
+  });
+
+  it("skips invalid price snapshots instead of rendering them as 0", async () => {
+    const repo: AiChatRepository = {
+      listStrategies: async () => [],
+      listPositions: async () => [
         {
-          id: "m-targeted",
-          title: "策略复盘",
-          content: "与策略直接相关。",
+          id: "p1",
+          strategyId: null,
+          symbol: "AAPL",
+          referencePrice: null,
+          createdAt: new Date("2026-07-01T00:00:00Z"),
+          updatedAt: new Date("2026-07-08T00:00:00Z"),
+        },
+      ],
+      listLots: async () => [
+        {
+          id: "l1",
+          positionId: "p1",
+          type: "BUY",
+          shares: "2",
+          costPrice: "150",
+          lotDate: "2026-07-01",
+          notes: null,
+          createdAt: new Date("2026-07-01T00:00:00Z"),
+        },
+      ],
+      listRecentPrices: async () => ({
+        AAPL: [
+          { symbol: "AAPL", date: "2026-07-08", close: "bad" },
+          { symbol: "AAPL", date: "2026-07-07", close: "190" },
+        ],
+      }),
+      listMemories: async () => [],
+    };
+
+    const context = await buildPortfolioChatContext({
+      repo,
+      now: new Date("2026-07-08T10:00:00Z"),
+    });
+
+    expect(context.prices).toEqual([
+      {
+        symbol: "AAPL",
+        latestClose: 190,
+        recentCloses: [{ date: "2026-07-07", close: 190 }],
+      },
+    ]);
+    expect(context.positions[0]).toMatchObject({
+      symbol: "AAPL",
+      latestPrice: 190,
+      unrealizedPnl: 80,
+    });
+    expect(context.limitations).toContain("AAPL 存在无效价格快照，已跳过部分价格数据。");
+  });
+
+  it("keeps old but relevant symbol and strategy memories ahead of recent unrelated memories", async () => {
+    const repo: AiChatRepository = {
+      listStrategies: async () => [
+        {
+          id: "s1",
+          name: "趋势策略",
+          symbols: ["AAPL"],
+          content: "趋势",
+          createdAt: new Date("2026-06-01T00:00:00Z"),
+          updatedAt: new Date("2026-07-08T00:00:00Z"),
+        },
+      ],
+      listPositions: async () => [
+        {
+          id: "p1",
+          strategyId: "s1",
+          symbol: "AAPL",
+          referencePrice: null,
+          createdAt: new Date("2026-07-01T00:00:00Z"),
+          updatedAt: new Date("2026-07-08T00:00:00Z"),
+        },
+      ],
+      listLots: async () => [
+        {
+          id: "l1",
+          positionId: "p1",
+          type: "BUY",
+          shares: "1",
+          costPrice: "100",
+          lotDate: "2026-07-01",
+          notes: null,
+          createdAt: new Date("2026-07-01T00:00:00Z"),
+        },
+      ],
+      listRecentPrices: async () => ({
+        AAPL: [{ symbol: "AAPL", date: "2026-07-08", close: "120" }],
+      }),
+      listMemories: async () => [
+        {
+          id: "m-old-symbol",
+          title: "老的 symbol 记忆",
+          content: "这是较旧但与 AAPL 直接相关的记忆。",
+          kind: "context",
+          strategyId: null,
+          symbol: "AAPL",
+          tags: [],
+          pinned: false,
+          createdAt: new Date("2020-01-01T00:00:00Z"),
+          updatedAt: new Date("2020-01-01T00:00:00Z"),
+        },
+        {
+          id: "m-old-strategy",
+          title: "老的 strategy 记忆",
+          content: "这是较旧但与策略直接相关的记忆。",
           kind: "lesson",
           strategyId: "s1",
           symbol: null,
           tags: [],
           pinned: false,
+          createdAt: new Date("2020-01-02T00:00:00Z"),
+          updatedAt: new Date("2020-01-02T00:00:00Z"),
+        },
+        ...Array.from({ length: 12 }, (_, index) => ({
+          id: `m-global-${index + 1}`,
+          title: `最近全局记忆 ${index + 1}`,
+          content: `近期但无关的全局记忆 ${index + 1}`,
+          kind: "note" as const,
+          strategyId: null,
+          symbol: null,
+          tags: [],
+          pinned: false,
+          createdAt: new Date(`2026-07-${String(index + 1).padStart(2, "0")}T00:00:00Z`),
+          updatedAt: new Date(`2026-07-${String(index + 1).padStart(2, "0")}T00:00:00Z`),
+        })),
+      ],
+    };
+
+    const context = await buildPortfolioChatContext({
+      repo,
+      now: new Date("2026-07-08T10:00:00Z"),
+    });
+
+    expect(context.memories).toHaveLength(12);
+    expect(context.memories.map((memory) => memory.id)).toEqual(
+      expect.arrayContaining(["m-old-symbol", "m-old-strategy"])
+    );
+    expect(context.memories.map((memory) => memory.id)).not.toEqual(
+      expect.arrayContaining(["m-global-1", "m-global-2", "m-global-3", "m-global-4", "m-global-5", "m-global-6", "m-global-7", "m-global-8", "m-global-9", "m-global-10", "m-global-11", "m-global-12"])
+    );
+  });
+
+  it("merges pinned, symbol, strategy, and recent global memory buckets without duplicates", async () => {
+    const findMany = vi
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          id: "m-pinned",
+          title: "置顶背景",
+          content: "始终保留。",
+          kind: "context",
+          strategyId: null,
+          symbol: null,
+          tags: [],
+          pinned: true,
+          createdAt: new Date("2026-07-08T00:00:00Z"),
+          updatedAt: new Date("2026-07-08T00:00:00Z"),
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "m-symbol",
+          title: "symbol 相关",
+          content: "与 AAPL 相关。",
+          kind: "lesson",
+          strategyId: null,
+          symbol: "AAPL",
+          tags: [],
+          pinned: false,
+          createdAt: new Date("2020-01-01T00:00:00Z"),
+          updatedAt: new Date("2020-01-01T00:00:00Z"),
+        },
+        {
+          id: "m-overlap",
+          title: "重叠记忆",
+          content: "同时命中多个 bucket。",
+          kind: "note",
+          strategyId: "s1",
+          symbol: "AAPL",
+          tags: [],
+          pinned: false,
           createdAt: new Date("2026-07-07T00:00:00Z"),
           updatedAt: new Date("2026-07-07T00:00:00Z"),
         },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "m-strategy",
+          title: "strategy 相关",
+          content: "与策略相关。",
+          kind: "lesson",
+          strategyId: "s1",
+          symbol: null,
+          tags: [],
+          pinned: false,
+          createdAt: new Date("2020-01-02T00:00:00Z"),
+          updatedAt: new Date("2020-01-02T00:00:00Z"),
+        },
+        {
+          id: "m-overlap",
+          title: "重叠记忆",
+          content: "同时命中多个 bucket。",
+          kind: "note",
+          strategyId: "s1",
+          symbol: "AAPL",
+          tags: [],
+          pinned: false,
+          createdAt: new Date("2026-07-07T00:00:00Z"),
+          updatedAt: new Date("2026-07-07T00:00:00Z"),
+        },
+      ])
+      .mockResolvedValueOnce([
         {
           id: "m-global",
           title: "市场观察",
@@ -281,8 +507,7 @@ describe("buildPortfolioChatContext", () => {
           createdAt: new Date("2026-07-08T00:00:00Z"),
           updatedAt: new Date("2026-07-08T00:00:00Z"),
         },
-      ];
-    });
+      ]);
 
     vi.doMock("@/lib/db", () => ({
       db: {
@@ -302,7 +527,14 @@ describe("buildPortfolioChatContext", () => {
       strategyIds: ["s1"],
     });
 
-    expect(memories.map((memory) => memory.id)).toContain("m-global");
+    expect(findMany).toHaveBeenCalledTimes(4);
+    expect(memories.map((memory) => memory.id)).toEqual([
+      "m-pinned",
+      "m-symbol",
+      "m-overlap",
+      "m-strategy",
+      "m-global",
+    ]);
   });
 
   it("limits recent price queries to 10 rows per symbol in repository layer", async () => {
