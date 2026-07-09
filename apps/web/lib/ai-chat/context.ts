@@ -76,6 +76,12 @@ function normalizeDate(value: Date | string): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
 
+function formatPriceDate(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return String(value);
+}
+
 function buildMemoryLabel(
   memory: MemoryRow,
   strategyNameById: Map<string, string>
@@ -224,12 +230,7 @@ export async function buildPortfolioChatContext(args?: {
       const recentRows = (recentPricesBySymbol[symbol] ?? []).slice(0, PRICES_PER_SYMBOL_LIMIT);
       const recentCloses = recentRows
         .map((row) => ({
-          date:
-            typeof row.date === "string"
-              ? row.date
-              : row.date instanceof Date
-                ? row.date.toISOString().slice(0, 10)
-                : String(row.date),
+          date: formatPriceDate(row.date),
           close: toNumber(row.close) ?? 0,
         }))
         .filter((row) => Number.isFinite(row.close));
