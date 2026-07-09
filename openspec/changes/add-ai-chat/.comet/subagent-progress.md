@@ -8,12 +8,12 @@
 
 ## Current Task
 
-- Plan task: Task 5: 页面和导航
-- OpenSpec task: 3.1 新增 AI Chat 导航入口和页面路由。 / 3.2 构建 AI Chat 页面，包含当前页面消息历史、输入区、发送控件、加载状态和错误状态。 / 3.3 将对话状态仅保存在页面内，刷新或重新打开页面后从空对话开始。 / 3.4 增加组件或页面测试，尽量覆盖发送问题、展示回答、追问历史提交、错误展示和刷新重置行为。
+- Plan task: Task 6: 集成验证和风险检查
+- OpenSpec task: 4.1 运行相关测试。 / 4.2 运行 OpenSpec 校验。 / 4.3 手动验证当前页面临时对话和数据边界。
 - Stage: checkoff
-- Implementer: 019f44b8-4ff4-7a11-a83c-f2093f122e4a
-- Review required: pending risk assessment
-- Review/fix rounds: 1
+- Implementer: main coordinator
+- Review required: final standard review pending
+- Review/fix rounds: 0
 
 ## Evidence
 
@@ -23,3 +23,11 @@
 - GREEN: `npm run test -w apps/web -- app/ai-chat/__tests__/page.test.tsx components/layout/__tests__/sidebar.test.tsx components/layout/__tests__/mobile-nav.test.tsx` passed 15 tests after fix
 - Risk signals: DONE_WITH_CONCERNS; UI/navigation diff > 200 lines; mobile nav label may be crowded
 - Task review: APPROVED by 019f44c8-9475-7653-9aae-3e0164bfc804 after fix commit be6dfc8b9ebd951e100d4a7d2314dd3dbd2d5547
+- Verification: AI Chat targeted tests passed 7 files / 38 tests.
+- Verification: full Web tests passed 36 files / 233 tests.
+- Verification: DB tests passed 2 files / 43 tests.
+- Verification: `npx openspec validate add-ai-chat --strict` passed.
+- Verification: `npm run build -w apps/web` passed after build-blocking type fixes.
+- Manual smoke: dev server rendered `/ai-chat` with sidebar entry `组合问答`, page title, textarea, send button, and mobile nav `问答`; HTTP 200 via `127.0.0.1:3000/ai-chat`.
+- Manual limitation: Playwright visual/browser validation could not run because the local Chromium binary is missing; no network download was attempted.
+- Scope note: build also required fixing a pre-existing numeric insert typing issue in `apps/web/lib/position-service.ts`.
