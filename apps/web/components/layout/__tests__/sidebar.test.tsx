@@ -99,4 +99,16 @@ describe("Sidebar", () => {
       expect.arrayContaining(["策略库", "持仓管理", "监控中心", "通知"])
     );
   });
+
+  it("shows ai chat entry", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      mockFetchResponse({ unreadCount: 0 })
+    );
+
+    render(<Sidebar />);
+
+    await waitFor(() => {
+      expect(screen.getByText("组合问答")).toBeInTheDocument();
+    });
+  });
 });

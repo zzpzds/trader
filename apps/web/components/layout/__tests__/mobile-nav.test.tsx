@@ -79,4 +79,16 @@ describe("MobileNav", () => {
     });
     expect(screen.queryByText("0")).not.toBeInTheDocument();
   });
+
+  it("shows ai chat tab", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      mockFetchResponse({ unreadCount: 0 })
+    );
+
+    render(<MobileNav />);
+
+    await waitFor(() => {
+      expect(screen.getByText("组合问答")).toBeInTheDocument();
+    });
+  });
 });
