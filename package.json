@@ -18,5 +18,8 @@
     "dotenv-cli": "^11.0.0",
     "jsdom": "^29.1.1",
     "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "@fission-ai/openspec": "^1.5.0"
   }
 }
