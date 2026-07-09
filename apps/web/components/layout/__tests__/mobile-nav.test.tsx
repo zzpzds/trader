@@ -80,7 +80,7 @@ describe("MobileNav", () => {
     expect(screen.queryByText("0")).not.toBeInTheDocument();
   });
 
-  it("shows ai chat tab", async () => {
+  it("renders ai chat tab with short mobile label and stable layout", async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
       mockFetchResponse({ unreadCount: 0 })
     );
@@ -88,7 +88,12 @@ describe("MobileNav", () => {
     render(<MobileNav />);
 
     await waitFor(() => {
-      expect(screen.getByText("组合问答")).toBeInTheDocument();
+      expect(screen.getByText("问答")).toBeInTheDocument();
     });
+
+    const aiChatTab = screen.getByRole("link", { name: /问答/i });
+    expect(aiChatTab).toHaveAttribute("href", "/ai-chat");
+    expect(aiChatTab).toHaveClass("whitespace-nowrap");
+    expect(screen.queryByText("组合问答")).not.toBeInTheDocument();
   });
 });

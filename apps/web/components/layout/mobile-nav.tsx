@@ -39,7 +39,7 @@ const navItems = [
   },
   {
     href: "/ai-chat",
-    label: "组合问答",
+    label: "问答",
     icon: MessageCircle,
   },
   {
@@ -80,7 +80,7 @@ export function MobileNav() {
             key={href}
             href={href}
             className={cn(
-              "flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] relative",
+              "flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] relative whitespace-nowrap",
               active
                 ? "text-primary font-medium"
                 : "text-muted-foreground"
