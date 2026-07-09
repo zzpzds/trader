@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Add position lot
 用户 SHALL 能够为策略下的任意股票新增一条买入批次（lot）记录。

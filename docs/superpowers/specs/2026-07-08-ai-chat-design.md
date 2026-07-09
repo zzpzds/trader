@@ -2,6 +2,8 @@
 comet_change: add-ai-chat
 role: technical-design
 canonical_spec: openspec
+archived-with: 2026-07-09-add-ai-chat
+status: final
 ---
 
 # AI Chat 技术设计
@@ -195,3 +197,4 @@ API 测试：
 ## 回滚
 
 回滚可以移除 `/ai-chat` 页面、导航入口、`/api/ai-chat` route 和 `CHAT` 配置扩展。由于不新增表、不写聊天历史、不触碰交易执行数据，回滚不需要数据迁移。
+

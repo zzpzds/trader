@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Portfolio P&L summary card
 持仓管理总览页 SHALL 在持仓列表上方显示账户级持仓收益汇总卡片,聚合**所有策略持仓与手动持仓**的总盈利(已实现 + 未实现),基于移动平均成本回放,价格源为 `price_snapshots`。

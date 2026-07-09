@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Unified price_snapshots time-series store
 系统 SHALL 维护一张 `price_snapshots(symbol, date, open, high, low, close, volume, fetched_at)` 表,以 `(symbol, date)` 为主键,作为账户级唯一价格数据源。

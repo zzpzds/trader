@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Notification page as standalone sidebar menu item
 系统 SHALL 在侧边栏导航中提供独立的通知菜单项，移除原有的铃铛下拉面板。
