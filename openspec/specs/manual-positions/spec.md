@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Manual position record without strategy
 用户 SHALL 能够录入未绑定任何策略的"手动持仓",系统将其作为 `strategy_id = NULL` 的 position 行存储,与策略持仓共享同一张 `positions` / `position_lots` 表。

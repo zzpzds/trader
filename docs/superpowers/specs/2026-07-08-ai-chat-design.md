@@ -2,6 +2,8 @@
 comet_change: add-ai-chat
 role: technical-design
 canonical_spec: openspec
+archived-with: 2026-07-09-add-ai-chat
+status: final
 ---
 
 # AI Chat 技术设计

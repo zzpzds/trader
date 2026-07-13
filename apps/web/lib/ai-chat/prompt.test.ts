@@ -120,7 +120,11 @@ describe("buildAiChatMessages", () => {
     expect(messages[0]).toMatchObject({
       content: expect.stringContaining("不输出工具调用或结构化交易指令"),
     });
-    expect(messages.slice(1, -1)).toEqual([
+    expect(messages[1]).toMatchObject({
+      role: "user",
+      content: expect.stringContaining("以下是系统提供的组合上下文"),
+    });
+    expect(messages.slice(2, -1)).toEqual([
       { role: "user", content: "前面聊过仓位" },
       { role: "assistant", content: "可以继续观察。" },
     ]);

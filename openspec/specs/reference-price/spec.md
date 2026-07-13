@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Reference price auto-initialization
 系统 SHALL 在为某 position 创建首笔 lot 时，自动将该 lot 的 cost_price 写入 positions.reference_price。

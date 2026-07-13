@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: P&L rate history chart on positions overview page
 持仓管理总览页 SHALL 在汇总卡片下方展示账户级历史收益率折线图,数据源为 `price_snapshots`,**包含**手动持仓贡献。

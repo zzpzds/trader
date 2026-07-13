@@ -1,4 +1,4 @@
-export type AnthropicScenario = "PARSE";
+export type AnthropicScenario = "PARSE" | "CHAT";
 
 export interface AnthropicConfig {
   apiKey: string | undefined;

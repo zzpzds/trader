@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Upload Python script
 用户 SHALL 能够通过上传 `.py` 文件将策略脚本注入系统。
