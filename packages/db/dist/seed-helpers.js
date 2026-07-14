@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.resolveSeedDir = resolveSeedDir;
 exports.parseFrontmatter = parseFrontmatter;
 const node_path_1 = __importDefault(require("node:path"));
+const node_fs_1 = require("node:fs");
 /**
  * Resolve the seed directory inside `@trader/db`. The directory ships with
  * the `packages/db` workspace, which is COPYed into the worker Docker image.
@@ -20,6 +21,9 @@ const node_path_1 = __importDefault(require("node:path"));
  * the bare-module specifier to find the package's installed location.
  */
 function resolveSeedDir() {
+    if (process.env.SEED_SKILLS_DIR) {
+        return process.env.SEED_SKILLS_DIR;
+    }
     // Use require.resolve so this works both when the consumer is CJS (worker
     // production build, web Next.js server runtime) and when this module is
     // bundled or transpiled. The function relies on Node's CJS resolver being
@@ -32,7 +36,17 @@ function resolveSeedDir() {
             // CJS code path simple.
             eval("require");
     const pkgJsonPath = req.resolve("@trader/db/package.json");
-    return node_path_1.default.join(node_path_1.default.dirname(pkgJsonPath), "seed", "skills");
+    if (typeof pkgJsonPath === "string") {
+        return node_path_1.default.join(node_path_1.default.dirname(pkgJsonPath), "seed", "skills");
+    }
+    for (const candidate of [
+        node_path_1.default.join(process.cwd(), "packages", "db", "seed", "skills"),
+        "/app/packages/db/seed/skills",
+    ]) {
+        if ((0, node_fs_1.existsSync)(candidate))
+            return candidate;
+    }
+    return node_path_1.default.join(process.cwd(), "packages", "db", "seed", "skills");
 }
 /**
  * Minimal frontmatter parser. Accepts files starting with `---\n<key: value>\n---\n<body>`.

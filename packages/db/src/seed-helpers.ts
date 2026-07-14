@@ -1,4 +1,5 @@
 import path from "node:path";
+import { existsSync } from "node:fs";
 
 export interface ParsedSkill {
   name: string;
@@ -21,6 +22,10 @@ export interface ParsedSkill {
  * the bare-module specifier to find the package's installed location.
  */
 export function resolveSeedDir(): string {
+  if (process.env.SEED_SKILLS_DIR) {
+    return process.env.SEED_SKILLS_DIR;
+  }
+
   // Use require.resolve so this works both when the consumer is CJS (worker
   // production build, web Next.js server runtime) and when this module is
   // bundled or transpiled. The function relies on Node's CJS resolver being
@@ -34,7 +39,18 @@ export function resolveSeedDir(): string {
         // CJS code path simple.
         (eval("require") as NodeJS.Require);
   const pkgJsonPath = req.resolve("@trader/db/package.json");
-  return path.join(path.dirname(pkgJsonPath), "seed", "skills");
+  if (typeof pkgJsonPath === "string") {
+    return path.join(path.dirname(pkgJsonPath), "seed", "skills");
+  }
+
+  for (const candidate of [
+    path.join(process.cwd(), "packages", "db", "seed", "skills"),
+    "/app/packages/db/seed/skills",
+  ]) {
+    if (existsSync(candidate)) return candidate;
+  }
+
+  return path.join(process.cwd(), "packages", "db", "seed", "skills");
 }
 
 /**

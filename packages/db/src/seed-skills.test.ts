@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseFrontmatter } from "./seed-helpers";
+import { parseFrontmatter, resolveSeedDir } from "./seed-helpers";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SEED_DIR = path.join(__dirname, "..", "seed", "skills");
@@ -55,6 +55,20 @@ describe("seed/skills/*.md", () => {
 
   it("contains at least one seed file", () => {
     expect(files.length).toBeGreaterThan(0);
+  });
+
+  it("allows SEED_SKILLS_DIR to override runtime seed path", () => {
+    const previous = process.env.SEED_SKILLS_DIR;
+    process.env.SEED_SKILLS_DIR = "/tmp/custom-seed-skills";
+    try {
+      expect(resolveSeedDir()).toBe("/tmp/custom-seed-skills");
+    } finally {
+      if (previous === undefined) {
+        delete process.env.SEED_SKILLS_DIR;
+      } else {
+        process.env.SEED_SKILLS_DIR = previous;
+      }
+    }
   });
 
   it.each(files)("$fname parses cleanly", ({ fname, raw }) => {

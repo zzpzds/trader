@@ -36,6 +36,7 @@ services:
       ANTHROPIC_API_KEY_PARSE: ${ANTHROPIC_API_KEY_PARSE:-}
       ANTHROPIC_BASE_URL_PARSE: ${ANTHROPIC_BASE_URL_PARSE:-}
       ANTHROPIC_MODEL_PARSE: ${ANTHROPIC_MODEL_PARSE:-}
+      SEED_SKILLS_DIR: /app/packages/db/seed/skills
     mem_limit: 512m
     command: node --max-old-space-size=256 apps/web/server.js
 
