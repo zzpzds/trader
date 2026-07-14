@@ -22,6 +22,7 @@ WORKDIR /app
 COPY --from=build /app/apps/web/.next/standalone ./
 COPY --from=build /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=build /app/apps/web/public ./apps/web/public
+COPY --from=build /app/packages/db/seed ./packages/db/seed
 ENV HOSTNAME=0.0.0.0
 ENV PORT=80
 EXPOSE 80
