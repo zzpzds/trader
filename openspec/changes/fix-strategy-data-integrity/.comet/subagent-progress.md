@@ -98,11 +98,11 @@
 - Task review: not required（test-only low risk）
 - Unresolved feedback: 无
 
-## Current Task
+## Pending Production Task
 
 - Task: `Task 6: 获取最新线上快照并准备生产修正载荷`
 - OpenSpec mapping: `3.2 获取并校验目标线上 AI 策略的变更前快照，准备 AMKR 配置修正载荷`
-- Stage: `production-write-retry-decision-gate`
+- Stage: `validation-with-production-pending`
 - Allowed files: `openspec/changes/fix-strategy-data-integrity/production-update-plan.md`
 - TDD mode note: 只读外部快照与文档载荷任务，不适用代码 RED/GREEN
 - Implementation commit: `6d0f57a`
@@ -131,4 +131,20 @@
 - PUT attempt: curl exit `7`、HTTP `000`，连接 `47.93.78.7:80` 失败，未收到服务端响应；未自动重试写请求
 - Post-failure GET: `2026-08-17T15:25:45+0800 (CST)` HTTP 200；`symbols/content/script/updatedAt` 与 fresh pre-PUT 快照完全一致，三字段 SHA-256=`fdd48346e3bf2115bc617a5fb9e2021f7c7fe06c8a612c8eda548555fb9aa588`
 - Rollback disposition: 线上状态未改变，无需也未执行回滚
-- Unresolved feedback: 本次一次性写授权已消费；等待用户决定是否授权新的单次 PUT 重试
+- Retry decision: 用户回复 `0`，明确停止生产 PUT 重试；线上状态保持 fresh pre-PUT 快照，OpenSpec `3.3` 保留未完成
+- Unresolved feedback: OpenSpec `3.3` 待未来新的生产写入授权与成功回读
+
+## Current Task
+
+- Task: `Task 7: 全量验证、任务收口与交付检查`
+- OpenSpec mapping: `4.1` 相关测试/构建、`4.2` 固定样例核对、`4.3` 生产决策/尝试/回读/回滚结果记录
+- Stage: `final-code-review`
+- Allowed files: `openspec/changes/fix-strategy-data-integrity/production-update-plan.md`
+- TDD mode note: 验证/证据记录任务，不适用新增代码 RED/GREEN
+- Known baseline: Worker `alphavantage-fetch.test.ts` 因固定 2026-05 日期超出当前 60 天窗口而 5 项失败，用户已明确选择继续；不得修改该域或虚报全绿
+- Production outcome to record: PUT 连接失败 HTTP 000；立即 GET 证明线上三字段与 `updatedAt` 完全未变；未执行回滚；用户停止重试；3.3 保持未完成
+- Validation evidence: DB 55/55；Web P&L 13/13；Worker monitoring/analyzer/news 33/33；DB/Worker/Web build 全部通过；固定样例 held 5 / cost 3000 / avg 600 / realized 300 / open
+- Full-suite evidence: DB 55/55、Web 241/241；Worker 86 passed / 5 failed，且仅为用户已接受的 `alphavantage-fetch.test.ts` 固定日期基线，无新增失败文件
+- Boundary evidence: OpenSpec strict validation 与 `git diff --check` 通过；OpenSpec `3.3` 保持未完成，因此不得运行 build → verify 守卫
+- Task review required: no task-level review；完成后执行一次 standard final lightweight review
+- Unresolved feedback: 无

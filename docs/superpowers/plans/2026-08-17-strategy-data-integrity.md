@@ -966,7 +966,7 @@ git commit -m "docs: prepare AMKR production correction"
 - Modify: `openspec/changes/fix-strategy-data-integrity/tasks.md`
 - Modify: `openspec/changes/fix-strategy-data-integrity/production-update-plan.md`（只记录实际生产决策及结果）
 
-- [ ] **Step 1: 按依赖顺序执行相关测试**
+- [x] **Step 1: 按依赖顺序执行相关测试**
 
 Run:
 
@@ -979,7 +979,7 @@ npm run test -w @trader/worker -- src/monitoring/__tests__/job.test.ts src/monit
 
 Expected: 全部 PASS。固定样例在共享模块和 Worker job 中均得到持股 5、成本 3000、均价 600、已实现盈亏 300。
 
-- [ ] **Step 2: 执行应用构建**
+- [x] **Step 2: 执行应用构建**
 
 Run:
 
@@ -991,7 +991,7 @@ npm run build -w @trader/web
 
 Expected: 三个 workspace build 全部成功。
 
-- [ ] **Step 3: 执行工作区测试**
+- [x] **Step 3: 执行工作区测试**
 
 Run:
 
@@ -1001,7 +1001,7 @@ npm test
 
 Expected: 所有 workspace 测试成功。若出现与本 change 无关的既有失败，保存完整输出并按 Comet 异常调试协议先归因，不得静默忽略。
 
-- [ ] **Step 4: 校验 OpenSpec 和工作区边界**
+- [x] **Step 4: 校验 OpenSpec 和工作区边界**
 
 Run:
 
@@ -1013,16 +1013,16 @@ git diff --check
 
 Expected: OpenSpec strict validation 成功，`git diff --check` 无错误；已知用户文件仍保持原状态且未进入本 change 的提交。
 
-- [ ] **Step 5: 完成 OpenSpec 4.1、4.2、4.3 的证据记录**
+- [x] **Step 5: 完成 OpenSpec 4.1、4.2、4.3 的证据记录**
 
 在 `production-update-plan.md` 记录测试/构建结果和生产决策：
 
 - 若用户授权且线上回读成功，记录前后 `updatedAt`、校验结果和未使用回滚载荷，勾选 3.3 与 4.3。
-- 若用户尚未授权，明确记录“生产 PUT 未执行、回滚载荷已准备、上线步骤待确认”；3.3 保持未勾选，因此不要运行 build → verify 阶段守卫。
+- 若用户尚未授权，或已授权的 PUT 未生效且用户明确停止重试，记录实际决策/尝试/回读/回滚结果并注明上线步骤待处理；3.3 保持未勾选，因此不要运行 build → verify 阶段守卫。
 
-固定样例测试通过后勾选 4.2；所有测试与构建通过后勾选 4.1。
+固定样例测试通过后勾选 4.2；相关测试与构建通过，且全量测试仅保留经用户确认接受的既有基线失败时，勾选 4.1 并如实记录基线。
 
-- [ ] **Step 6: 提交验证记录**
+- [x] **Step 6: 提交验证记录**
 
 只暂存本 change 的验证产物：
 

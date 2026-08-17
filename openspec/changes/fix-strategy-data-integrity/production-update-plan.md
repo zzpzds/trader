@@ -1,14 +1,14 @@
-# AMKR production correction — read-only preparation
+# AMKR production correction — prepared, production pending
 
 ## Status and boundary
 
-- **Status:** DONE — payload preparation only; production write is pending explicit user confirmation.
+- **Status:** LOCAL WORK DONE — the attempted production PUT did not reach the server, the immediate GET proved production unchanged, and the user stopped retrying.
 - **Strategy ID validated:** `bd181ef3-298c-487c-bc02-c0bb69664912` (exact match)
 - **Read-only GET response completion time (Asia/Shanghai):** `2026-08-17T15:03:58+0800 (CST)`
 - **Snapshot `updatedAt`:** `2026-07-30T11:19:20.720Z`
-- **Production writes performed:** none. No PUT/POST/PATCH/DELETE, deployment, or task trigger was issued.
+- **Production write result:** one explicitly authorized partial PUT was attempted but curl exited `7` with HTTP `000` before any server response. No deployment or task trigger was issued.
 
-The first authorized write-window preflight correctly stopped before PUT: its apparent snapshot drift was an evidence-transcription omission of the existing `# ── 入口 ─────────────────────────────────────────────────────────────────────` line immediately before `def main()`. The refreshed snapshot now matches the fresh GET; a new explicit confirmation is required after this refresh and review.
+The first authorized write-window preflight correctly stopped before PUT: its apparent snapshot drift was an evidence-transcription omission of the existing `# ── 入口 ─────────────────────────────────────────────────────────────────────` line immediately before `def main()`. After refreshing and reviewing the snapshot, the second authorized attempt passed preflight but failed to connect. The immediate GET proved production unchanged, and the user declined a retry. Any future PUT therefore requires a new explicit confirmation and a new fresh-GET gate.
 
 The successful snapshot is internally inconsistent: `symbols` still contains `AIQ`, `content` already describes AMKR with T2 parameters, and `script` still configures AIQ as T1. The prepared partial update changes only the three permitted fields.
 
