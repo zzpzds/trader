@@ -1,0 +1,16 @@
+{
+  "change": "fix-strategy-data-integrity",
+  "phase": "design",
+  "mode": "compact",
+  "canonical_spec": "openspec",
+  "generated_by": "comet-handoff.sh",
+  "context_hash": "4081583c683a2a339e9cd20f322ecd5b8504f0cfc950a2a77e9dda003b5cd85d",
+  "files": [
+    { "path": "openspec/changes/fix-strategy-data-integrity/proposal.md", "sha256": "9075e3cea383a6de9c6664a24c1f510866e7c9fceefcf962dc3273c996afd5a9" },
+    { "path": "openspec/changes/fix-strategy-data-integrity/design.md", "sha256": "01f72ec26bdcb2e4fb8744a85d650f31a6757e27aee4e49dcb3367b8d6dc347c" },
+    { "path": "openspec/changes/fix-strategy-data-integrity/tasks.md", "sha256": "2bfa62cc29101a62d558adb9390e2a41f7a9dbf5127410c2615a13ac5fb635ed" },
+    { "path": "openspec/changes/fix-strategy-data-integrity/specs/daily-monitoring/spec.md", "sha256": "ebbe81fc476715fbcb399e68273b047753216f8169c3a2498c8dcf5e3f62aa52" },
+    { "path": "openspec/changes/fix-strategy-data-integrity/specs/news-hotspot/spec.md", "sha256": "c6bfc819e712be1b69e0bc0ba17e93fc0d99136a43b810cb9225a4f6c4ed97e3" },
+    { "path": "openspec/changes/fix-strategy-data-integrity/specs/position-management/spec.md", "sha256": "a9d44aa1e502b635fac7f7caf77ddb3943b2dd86b0c799df56dbe2ba81b62f92" }
+  ]
+}
