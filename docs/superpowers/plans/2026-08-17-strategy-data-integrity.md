@@ -401,7 +401,7 @@ git commit -m "refactor(web): reuse shared position replay"
 - Modify: `apps/worker/src/monitoring/__tests__/job.test.ts`
 - Modify: `apps/worker/vitest.config.ts`
 
-- [ ] **Step 1: 写 Worker 重新建仓回放的失败测试**
+- [x] **Step 1: 写 Worker 重新建仓回放的失败测试**
 
 在 `apps/worker/src/monitoring/__tests__/job.test.ts` 的 `describe("runMonitoringJob")` 中增加：
 
@@ -516,7 +516,7 @@ it("replays BUY, SELL, and re-entry before calling analyze", async () => {
 });
 ```
 
-- [ ] **Step 2: 运行 Worker 测试并确认 RED**
+- [x] **Step 2: 运行 Worker 测试并确认 RED**
 
 Run:
 
@@ -529,7 +529,7 @@ Expected: 新用例 FAIL；实际 `totalShares` 为 15，且分析输入缺少 `
 
 若测试先因 `@trader/db/position-replay` 被根入口 alias 吞掉而无法加载，先把 `apps/worker/vitest.config.ts` 的 `@trader/db` alias 收窄为仅匹配根入口的正则，再重新运行并取得上述业务断言 RED。
 
-- [ ] **Step 3: 扩展 Worker 数据契约**
+- [x] **Step 3: 扩展 Worker 数据契约**
 
 在 `apps/worker/src/monitoring/job.ts` 增加：
 
@@ -593,7 +593,7 @@ export interface PositionInfo {
 }
 ```
 
-- [ ] **Step 4: 用共享回放替换 Worker 的正向求和**
+- [x] **Step 4: 用共享回放替换 Worker 的正向求和**
 
 将 `positionInfos` 映射中的两个 `reduce` 删除，替换为：
 
@@ -636,7 +636,7 @@ const positionInfos: PositionInfo[] = strategy.positions.map((position) => {
 });
 ```
 
-- [ ] **Step 5: 运行 Worker job 测试并确认 GREEN**
+- [x] **Step 5: 运行 Worker job 测试并确认 GREEN**
 
 Run:
 
@@ -647,10 +647,10 @@ npm run test -w @trader/worker -- src/monitoring/__tests__/job.test.ts
 
 Expected: 新用例得到持股 5、成本 3000、均价 600、已实现盈亏 300，原有 job 测试也全部 PASS。
 
-- [ ] **Step 6: 勾选 OpenSpec 2.1、2.2、2.3 并提交**
+- [x] **Step 6: 勾选 OpenSpec 2.1、2.2、2.3 并提交**
 
 ```bash
-git add apps/worker/src/monitoring/job.ts apps/worker/src/monitoring/analyze.ts apps/worker/src/monitoring/__tests__/job.test.ts openspec/changes/fix-strategy-data-integrity/tasks.md
+git add apps/worker/src/monitoring/job.ts apps/worker/src/monitoring/analyze.ts apps/worker/src/monitoring/__tests__/job.test.ts apps/worker/vitest.config.ts openspec/changes/fix-strategy-data-integrity/tasks.md
 git commit -m "fix(worker): replay monitoring transactions"
 ```
 
