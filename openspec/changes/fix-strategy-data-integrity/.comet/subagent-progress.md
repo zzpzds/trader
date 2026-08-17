@@ -147,4 +147,9 @@
 - Full-suite evidence: DB 55/55、Web 241/241；Worker 86 passed / 5 failed，且仅为用户已接受的 `alphavantage-fetch.test.ts` 固定日期基线，无新增失败文件
 - Boundary evidence: OpenSpec strict validation 与 `git diff --check` 通过；OpenSpec `3.3` 保持未完成，因此不得运行 build → verify 守卫
 - Task review required: no task-level review；完成后执行一次 standard final lightweight review
-- Unresolved feedback: 无
+- Final review: 首轮 `CHANGES_REQUESTED`—clean checkout 缺少已导出的 `packages/db/dist/position-replay.{js,d.ts}`；另有生产文档措辞歧义与 4 处 EOF 空行
+- Final review fix: `8ff831b` 新增两个确定性 DB dist 产物，澄清 PUT 审计措辞并删除 4 处 EOF 空行；clean-checkout DB 55/55、Web 13/13、Worker 33/33
+- Final re-review: `APPROVED`—原 Important 与 Minor 均已解决，无新增 CRITICAL/IMPORTANT
+- Guard disposition: OpenSpec `3.3` 因线上 PUT 未生效且用户停止重试而保持未完成；按计划未运行 Comet build → verify 守卫，阶段保持 `build`
+- Stage: `build-complete-with-production-pending`
+- Unresolved feedback: OpenSpec `3.3` 待未来新的生产写入授权与成功回读

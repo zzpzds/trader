@@ -1031,7 +1031,7 @@ git add openspec/changes/fix-strategy-data-integrity/tasks.md openspec/changes/f
 git commit -m "chore: record strategy integrity verification"
 ```
 
-- [ ] **Step 7: 执行所选代码审查模式和 Comet build 守卫**
+- [x] **Step 7: 执行所选代码审查模式和 Comet build 守卫**
 
 若 `review_mode=standard`，在所有可执行任务完成后使用 Superpowers `requesting-code-review` 对 `base-ref..HEAD` 做一次轻量审查，先修复 CRITICAL 发现，再运行：
 
