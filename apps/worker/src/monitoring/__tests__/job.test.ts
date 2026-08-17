@@ -56,7 +56,6 @@ describe("runMonitoringJob", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("replays BUY, SELL, and re-entry before calling analyze", async () => {
-    mockAnalyze.mockReset();
     mockAnalyze.mockResolvedValueOnce({
       analysis: "ok",
       hasActionItems: false,
@@ -284,6 +283,9 @@ describe("runMonitoringJob", () => {
     await runMonitoringJob(mockDb);
 
     expect(mockFetchPrices).not.toHaveBeenCalled();
+    expect(setMock).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "completed" })
+    );
   });
 
   it("falls back to inline fetchPrices when snapshots are empty", async () => {
