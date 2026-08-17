@@ -43,7 +43,7 @@
 - Task review: APPROVED—共享函数身份、Web 类型/辅助函数兼容、根入口精确 alias 与变更范围均符合计划
 - Unresolved feedback: 无
 
-## Current Task
+## Completed Tasks
 
 - Task: `Task 3: 修复 Worker 的 BUY/SELL 聚合输入`
 - OpenSpec mapping: `2.1 扩展监控持仓查询与分析输入，保留 type、createdAt 和交易顺序信息`；`2.2 使用共享回放结果替换 Worker 对所有 lot 的直接正向求和`；`2.3 增加 Worker 回归测试，验证卖出不会增加持股或成本且 Web/Worker 结果一致`
@@ -63,4 +63,21 @@
 - Review-fix RED: 为 snapshot 覆盖用例新增 `status: completed` 断言后，泄漏状态下无法找到完成态调用
 - Review-fix GREEN: 移除有害 `mockReset()` 后，Worker job 定向测试 10/10 通过，完成态断言生效
 - Re-review: APPROVED—mock 默认实现得到保留，完成态断言可阻止内部失败静默通过；Task 3 无剩余 CRITICAL/IMPORTANT 问题
+- Unresolved feedback: 无
+
+## Current Task
+
+- Task: `Task 4: 安全渲染清仓状态和交易历史`
+- OpenSpec mapping: 延续 `2.1` 的分析输入契约，并完成清仓安全提示与有序 BUY/SELL 历史渲染
+- Stage: `checkoff`
+- Allowed files: `apps/worker/src/monitoring/analyze.ts`、`apps/worker/src/monitoring/__tests__/analyze.test.ts`
+- TDD requirement: 先补齐强类型 fixture，再以清仓状态验证无 `Infinity`/`NaN` 且交易历史按 date/createdAt/id 排序
+- Implementation commit: `afcccd3`
+- Changed files: `apps/worker/src/monitoring/analyze.ts`、`apps/worker/src/monitoring/__tests__/analyze.test.ts`
+- RED evidence: analyzer 17 项中新清仓用例失败，旧 prompt 显示 `P&L Infinity%` 且无“已清仓”文案
+- GREEN evidence: analyzer 17/17；analyzer + job 27/27；DB 与 Worker build 通过
+- Risk signals: LLM prompt 行为变更；清仓除零防护；有序交易历史
+- Task review required: yes（standard / prompt behavior）
+- Review/fix round: 0/1
+- Task review: APPROVED—清仓/开放分支安全、有限价格与均价 guard、有序历史、非变异排序和 prompt 插入位置均符合计划
 - Unresolved feedback: 无

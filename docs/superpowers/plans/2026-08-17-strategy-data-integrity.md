@@ -661,7 +661,7 @@ git commit -m "fix(worker): replay monitoring transactions"
 - Modify: `apps/worker/src/monitoring/analyze.ts`
 - Modify: `apps/worker/src/monitoring/__tests__/analyze.test.ts`
 
-- [ ] **Step 1: 为现有 analyzer 测试补齐强类型 fixtures**
+- [x] **Step 1: 为现有 analyzer 测试补齐强类型 fixtures**
 
 将测试导入改为：
 
@@ -704,7 +704,7 @@ function lot(overrides: Partial<PositionLotInfo> = {}): PositionLotInfo {
 
 把本文件每个传给 `analyze` 的内联 position 改成 `position({ ... })`。原来非空的 lot 改成 `lot({ shares, costPrice, lotDate })`，所有测试原有 symbol、股数、均价和参考价保持不变。
 
-- [ ] **Step 2: 写清仓提示词与交易类型的失败测试**
+- [x] **Step 2: 写清仓提示词与交易类型的失败测试**
 
 在 `describe("analyzeStrategy")` 中增加：
 
@@ -763,7 +763,7 @@ it("renders a closed position without Infinity and includes ordered transaction 
 });
 ```
 
-- [ ] **Step 3: 运行 analyzer 测试并确认 RED**
+- [x] **Step 3: 运行 analyzer 测试并确认 RED**
 
 Run:
 
@@ -774,7 +774,7 @@ npm run test -w @trader/worker -- src/monitoring/__tests__/analyze.test.ts
 
 Expected: 新用例 FAIL；旧逻辑会对平均成本 0 做除法，且没有清仓文案或交易历史区块。
 
-- [ ] **Step 4: 实现有序交易历史和分支式持仓摘要**
+- [x] **Step 4: 实现有序交易历史和分支式持仓摘要**
 
 在 `analyze.ts` 增加：
 
@@ -848,7 +848,7 @@ const transactionHistory = positions
 ${transactionHistory}
 ```
 
-- [ ] **Step 5: 运行 analyzer、job 测试及 Worker 构建**
+- [x] **Step 5: 运行 analyzer、job 测试及 Worker 构建**
 
 Run:
 
@@ -860,7 +860,7 @@ npm run build -w @trader/worker
 
 Expected: 所有测试 PASS；构建不再出现旧 `PositionInfo` fixture 缺字段错误，清仓 prompt 不含 `Infinity`/`NaN`。
 
-- [ ] **Step 6: 提交提示词安全修复**
+- [x] **Step 6: 提交提示词安全修复**
 
 ```bash
 git add apps/worker/src/monitoring/analyze.ts apps/worker/src/monitoring/__tests__/analyze.test.ts
