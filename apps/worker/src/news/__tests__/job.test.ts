@@ -120,6 +120,22 @@ describe("runNewsJob", () => {
     expect(conflictArg.set).toBeTruthy();
   });
 
+  it("queries AMKR and never AIQ after the saved symbol replacement", async () => {
+    const { db } = makeDbMock([
+      {
+        id: "strategy-amkr",
+        name: "AI strategy",
+        content: "AMKR uses T2",
+        symbols: ["NVDA", "GOOGL", "MSFT", "META", "AMKR"],
+      },
+    ]);
+
+    await runNewsJob(db, { interLlmDelayMs: 0 });
+
+    expect(mockTavilyFetch).toHaveBeenCalledWith("AMKR stock news");
+    expect(mockTavilyFetch).not.toHaveBeenCalledWith("AIQ stock news");
+  });
+
   it("serializes LLM summarize calls across strategies (no concurrent LLM in flight)", async () => {
     let inFlight = 0;
     let maxInFlight = 0;
