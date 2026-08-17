@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
-import { createAnalyzer } from "../analyze.js";
+import {
+  createAnalyzer,
+  type PositionInfo,
+  type PositionLotInfo,
+} from "../analyze.js";
 
 function makeToolUseResponse(input: { analysis: string; has_action_items: boolean; action_summary?: string; reference_price_updates?: Array<{ symbol: string; new_reference_price: number }>; suggested_skills?: string[] }) {
   return {
@@ -22,7 +26,85 @@ function mockClient(resolvedValue: any) {
   } as any;
 }
 
+function position(overrides: Partial<PositionInfo> = {}): PositionInfo {
+  return {
+    symbol: "QQQ",
+    totalShares: 10,
+    costBasis: 1000,
+    avgCost: 100,
+    realizedPnl: 0,
+    isClosed: false,
+    lots: [],
+    ...overrides,
+  };
+}
+
+function lot(overrides: Partial<PositionLotInfo> = {}): PositionLotInfo {
+  return {
+    id: "lot-1",
+    type: "BUY",
+    shares: 10,
+    costPrice: 100,
+    lotDate: "2026-01-01",
+    createdAt: "2026-01-01T09:00:00Z",
+    ...overrides,
+  };
+}
+
 describe("analyzeStrategy", () => {
+  it("renders a closed position without Infinity and includes ordered transaction types", async () => {
+    const client = mockClient(
+      makeToolUseResponse({ analysis: "ok", has_action_items: false })
+    );
+    const analyze = createAnalyzer(client);
+
+    await analyze(
+      "Closed strategy",
+      "rules",
+      [
+        position({
+          symbol: "META",
+          totalShares: 0,
+          costBasis: 0,
+          avgCost: 0,
+          realizedPnl: 300,
+          isClosed: true,
+          lots: [
+            lot({
+              id: "sell",
+              type: "SELL",
+              shares: 5,
+              costPrice: 660,
+              lotDate: "2026-07-13",
+              createdAt: "2026-07-13T09:00:00Z",
+            }),
+            lot({
+              id: "buy",
+              type: "BUY",
+              shares: 5,
+              costPrice: 600,
+              lotDate: "2026-05-11",
+              createdAt: "2026-05-11T09:00:00Z",
+            }),
+          ],
+        }),
+      ],
+      { META: { latest: 556.71, bars: [] } }
+    );
+
+    const prompt = (client.messages.create as any).mock.calls[0][0]
+      .messages[0].content as string;
+    expect(prompt).toContain("META: 已清仓");
+    expect(prompt).toContain("当前 0 shares");
+    expect(prompt).toContain("已实现盈亏 $300.00");
+    expect(prompt).toContain("当前持仓收益率不适用");
+    expect(prompt).not.toContain("Infinity");
+    expect(prompt).not.toContain("NaN");
+    expect(prompt.indexOf("BUY 5 shares @ $600.00")).toBeLessThan(
+      prompt.indexOf("SELL 5 shares @ $660.00")
+    );
+  });
+
   it("returns analysis with action items when triggered", async () => {
     const client = mockClient(
       makeToolUseResponse({
@@ -36,7 +118,7 @@ describe("analyzeStrategy", () => {
     const result = await analyze(
       "Test Strategy",
       "Buy QQQ when SMA20 > SMA50",
-      [{ symbol: "QQQ", totalShares: 100, avgCost: 180, lots: [{ shares: 100, costPrice: 180, lotDate: "2025-01-01" }] }],
+      [position({ totalShares: 100, avgCost: 180, lots: [lot({ shares: 100, costPrice: 180, lotDate: "2025-01-01" })] })],
       { QQQ: { latest: 170, bars: [{ date: "2025-05-01", close: 170 }] } }
     );
 
@@ -57,7 +139,7 @@ describe("analyzeStrategy", () => {
     const result = await analyze(
       "Test Strategy",
       "Buy QQQ when SMA20 > SMA50",
-      [{ symbol: "QQQ", totalShares: 100, avgCost: 180, lots: [{ shares: 100, costPrice: 180, lotDate: "2025-01-01" }] }],
+      [position({ totalShares: 100, avgCost: 180, lots: [lot({ shares: 100, costPrice: 180, lotDate: "2025-01-01" })] })],
       { QQQ: { latest: 190, bars: [{ date: "2025-05-01", close: 190 }] } }
     );
 
@@ -89,7 +171,7 @@ describe("analyzeStrategy", () => {
     const result = await analyze(
       "T1 Strategy",
       "Reset ref price when price >= ref * 1.15",
-      [{ symbol: "ISRG", totalShares: 10, avgCost: 300, referencePrice: 300, lots: [] }],
+      [position({ symbol: "ISRG", avgCost: 300, referencePrice: 300 })],
       { ISRG: { latest: 348.5, bars: [] } }
     );
 
@@ -110,7 +192,7 @@ describe("analyzeStrategy", () => {
     const result = await analyze(
       "T1 Strategy",
       "Reset ref price when price >= ref * 1.15",
-      [{ symbol: "ISRG", totalShares: 10, avgCost: 300, referencePrice: 300, lots: [] }],
+      [position({ symbol: "ISRG", avgCost: 300, referencePrice: 300 })],
       { ISRG: { latest: 310, bars: [] } }
     );
 
@@ -138,7 +220,7 @@ describe("analyzeStrategy", () => {
     await analyze(
       "S",
       "rules",
-      [{ symbol: "QQQ", totalShares: 10, avgCost: 100, lots: [] }],
+      [position()],
       { QQQ: { latest: 110, bars: [] } },
       [
         { id: "1", title: "看好 QQQ", kind: "idea", symbol: "QQQ", pinned: true, contentPreview: "H100 backlog" },
@@ -157,7 +239,7 @@ describe("analyzeStrategy", () => {
     await analyze(
       "S",
       "rules",
-      [{ symbol: "QQQ", totalShares: 10, avgCost: 100, lots: [] }],
+      [position()],
       { QQQ: { latest: 110, bars: [] } },
       []
     );
@@ -173,7 +255,7 @@ describe("analyzeStrategy", () => {
     await analyze(
       "S",
       "rules",
-      [{ symbol: "QQQ", totalShares: 10, avgCost: 100, lots: [] }],
+      [position()],
       { QQQ: { latest: 110, bars: [] } },
       [],
       []
@@ -190,7 +272,7 @@ describe("analyzeStrategy", () => {
     await analyze(
       "MyStrat",
       "rules go here",
-      [{ symbol: "QQQ", totalShares: 10, avgCost: 100, lots: [] }],
+      [position()],
       { QQQ: { latest: 110, bars: [] } },
       [],
       [
@@ -218,7 +300,7 @@ describe("analyzeStrategy", () => {
     await analyze(
       "S",
       "rules",
-      [{ symbol: "QQQ", totalShares: 10, avgCost: 100, lots: [] }],
+      [position()],
       { QQQ: { latest: 110, bars: [] } },
       [
         { id: "1", title: "看好 QQQ", kind: "idea", symbol: "QQQ", pinned: true, contentPreview: "H100 backlog" },
@@ -240,7 +322,7 @@ describe("analyzeStrategy", () => {
     await analyze(
       "S",
       "rules",
-      [{ symbol: "QQQ", totalShares: 10, avgCost: 100, lots: [] }],
+      [position()],
       { QQQ: { latest: 110, bars: [] } },
       [],
       [],
@@ -258,7 +340,7 @@ describe("analyzeStrategy", () => {
     await analyze(
       "MyStrat",
       "rules",
-      [{ symbol: "QQQ", totalShares: 10, avgCost: 100, lots: [] }],
+      [position()],
       { QQQ: { latest: 110, bars: [] } },
       [{ id: "1", title: "note", kind: "idea", symbol: "QQQ", pinned: false, contentPreview: "hi" }],
       [{ id: "sk", name: "active-skill", bodyMd: "# active" }],
@@ -295,7 +377,7 @@ describe("analyzeStrategy", () => {
     const result = await analyze(
       "S",
       "rules",
-      [{ symbol: "QQQ", totalShares: 10, avgCost: 100, lots: [] }],
+      [position()],
       { QQQ: { latest: 110, bars: [] } }
     );
     expect(result.suggestedSkills).toEqual(["candlestick", "risk-checklist"]);
@@ -309,7 +391,7 @@ describe("analyzeStrategy", () => {
     const result = await analyze(
       "S",
       "rules",
-      [{ symbol: "QQQ", totalShares: 10, avgCost: 100, lots: [] }],
+      [position()],
       { QQQ: { latest: 110, bars: [] } }
     );
     expect(result.suggestedSkills).toEqual([]);
@@ -323,7 +405,7 @@ describe("analyzeStrategy", () => {
     const result = await analyze(
       "S",
       "rules",
-      [{ symbol: "QQQ", totalShares: 10, avgCost: 100, lots: [] }],
+      [position()],
       { QQQ: { latest: 110, bars: [] } }
     );
     expect(result.analysis).toBe("ok");

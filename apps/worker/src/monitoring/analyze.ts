@@ -3,6 +3,7 @@ import { getAnthropicConfig } from "../lib/anthropic-config.js";
 import type { RelevantMemory } from "./load-memories.js";
 
 const REPORT_TOOL_NAME = "report_analysis";
+const POSITION_EPS = 1e-9;
 
 const reportToolSchema = {
   name: REPORT_TOOL_NAME,
@@ -79,6 +80,24 @@ export interface PositionInfo {
   lots: PositionLotInfo[];
 }
 
+function createdAtMillis(value: string | Date | null | undefined): number {
+  if (value == null) return 0;
+  const millis = new Date(value).getTime();
+  return Number.isFinite(millis) ? millis : 0;
+}
+
+function orderedLots(lots: readonly PositionLotInfo[]): PositionLotInfo[] {
+  return [...lots].sort((left, right) => {
+    if (left.lotDate !== right.lotDate) {
+      return left.lotDate < right.lotDate ? -1 : 1;
+    }
+    const createdAtDelta =
+      createdAtMillis(left.createdAt) - createdAtMillis(right.createdAt);
+    if (createdAtDelta !== 0) return createdAtDelta;
+    return left.id.localeCompare(right.id);
+  });
+}
+
 export interface SkillForAnalysis {
   id: string;
   name: string;
@@ -123,14 +142,37 @@ export function createAnalyzer(client?: Anthropic) {
           .join("\n")}\n\n`;
 
     const positionSummary = positions
-      .map((p) => {
-        const priceData = prices[p.symbol];
-        const latestPrice = priceData?.latest;
-        const pnl = latestPrice ? ((latestPrice - p.avgCost) / p.avgCost * 100).toFixed(2) : null;
-        const refLabel = p.referencePrice != null ? `$${p.referencePrice.toFixed(2)}` : "无参考价";
-        return `- ${p.symbol}: ${p.totalShares} shares @ avg $${p.avgCost.toFixed(2)}, ref ${refLabel}, latest $${latestPrice ?? "N/A"}, P&L ${pnl ?? "N/A"}%`;
+      .map((position) => {
+        const latestPrice = prices[position.symbol]?.latest;
+        const hasLatestPrice =
+          typeof latestPrice === "number" && Number.isFinite(latestPrice);
+        const latestLabel = hasLatestPrice ? `$${latestPrice}` : "N/A";
+        const referenceLabel =
+          position.referencePrice != null
+            ? `$${position.referencePrice.toFixed(2)}`
+            : "无参考价";
+
+        if (position.isClosed) {
+          return `- ${position.symbol}: 已清仓，当前 0 shares，成本基础 $0.00，已实现盈亏 $${position.realizedPnl.toFixed(2)}，ref ${referenceLabel}，latest ${latestLabel}，当前持仓收益率不适用`;
+        }
+
+        const pnl =
+          hasLatestPrice && position.avgCost > POSITION_EPS
+            ? `${(((latestPrice - position.avgCost) / position.avgCost) * 100).toFixed(2)}%`
+            : "N/A";
+        return `- ${position.symbol}: ${position.totalShares} shares @ avg $${position.avgCost.toFixed(2)}，成本基础 $${position.costBasis.toFixed(2)}，已实现盈亏 $${position.realizedPnl.toFixed(2)}，ref ${referenceLabel}，latest ${latestLabel}，P&L ${pnl}`;
       })
       .join("\n");
+
+    const transactionHistory = positions
+      .map((position) => {
+        const lines = orderedLots(position.lots).map(
+          (item) =>
+            `- ${item.type} ${item.shares} shares @ $${item.costPrice.toFixed(2)} (${item.lotDate})`
+        );
+        return `### ${position.symbol}\n${lines.length > 0 ? lines.join("\n") : "- 无交易明细"}`;
+      })
+      .join("\n\n");
 
     const recentBars = Object.entries(prices)
       .map(([symbol, data]) => {
@@ -154,6 +196,9 @@ ${strategyContent}
 
 ## 当前持仓
 ${positionSummary}
+
+## 交易历史
+${transactionHistory}
 
 ## 近期价格数据
 ${recentBars}
