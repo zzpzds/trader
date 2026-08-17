@@ -62,7 +62,7 @@ Mandatory write-window gate after a new explicit confirmation:
 4. Validate the post-PUT GET structurally: symbols must exactly equal `[NVDA, GOOGL, MSFT, META, AMKR]`; `symbols`, `content`, and `script` must contain no `AIQ`; and **both** `content` and `script` must contain the complete AMKR T2 contract: $10,000 target, 20% initial entry, 10% add, 15% drop trigger (`ref × 0.85`), 20% recovery trigger (`ref × 1.20`), and 8 maximum adds. Do not trigger downstream work unless every check passes.
 5. On failure, rollback only when the new explicit confirmation included rollback authorization. PUT the verified fresh pre-PUT three-field snapshot, immediately GET again, and require exact restoration of all three fields. Otherwise stop and request direction.
 
-No payload in this document has been sent. No network request or production write was performed during this review-fix round.
+No payload prepared or re-reviewed in this document's review-fix round was sent. A later explicitly authorized PUT attempt did not connect, and an immediate GET verified that production remained unchanged.
 
 ## Actual verification and production outcome (2026-08-17)
 

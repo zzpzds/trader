@@ -38,4 +38,3 @@
 ## Spec Patch
 
 - 为 `daily-monitoring` 增加验收场景：完全清仓的 position 仍以 0 股、已实现盈亏和清仓状态进入分析，不得计算持仓收益率或产生 `Infinity`。
-

@@ -56,4 +56,3 @@ Web 端通过 `apps/web/lib/pnl.ts` 按时间顺序回放 `BUY/SELL` 交易，�
 ## Open Questions
 
 - 生产策略数据修正是否与本变更部署同一窗口执行，由实施完成后的上线确认决定。
-
