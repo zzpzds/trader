@@ -82,7 +82,7 @@
 - Task review: APPROVED—清仓/开放分支安全、有限价格与均价 guard、有序历史、非变异排序和 prompt 插入位置均符合计划
 - Unresolved feedback: 无
 
-## Current Task
+## Completed Tasks
 
 - Task: `Task 5: 锁定热点任务的规范标的来源`
 - OpenSpec mapping: `3.1 增加热点任务测试，确认其严格按保存后的 strategies.symbols 生成查询`
@@ -97,3 +97,26 @@
 - Review/fix round: 0/1
 - Task review: not required（test-only low risk）
 - Unresolved feedback: 无
+
+## Current Task
+
+- Task: `Task 6: 获取最新线上快照并准备生产修正载荷`
+- OpenSpec mapping: `3.2 获取并校验目标线上 AI 策略的变更前快照，准备 AMKR 配置修正载荷`
+- Stage: `production-write-decision-gate`
+- Allowed files: `openspec/changes/fix-strategy-data-integrity/production-update-plan.md`
+- TDD mode note: 只读外部快照与文档载荷任务，不适用代码 RED/GREEN
+- Implementation commit: `6d0f57a`
+- GET evidence: `2026-08-17T14:22:46+0800 (CST)`；快照 `updatedAt=2026-07-30T11:19:20.720Z`；ID 精确匹配
+- Payload validation: 两个 JSON 对象仅含 `symbols/content/script`；目标 symbols 精确；目标三字段无 AIQ；content/script 均含 AMKR/T2/10k/20%/10%；回滚载荷保存原始三字段
+- Production boundary: 只允许 GET；禁止 PUT、部署、手动触发热点或监控
+- Risk signals: 生产配置载荷与回滚边界
+- Task review required: yes（standard / production payload evidence）
+- Review/fix round: 2/2（用户于 2026-08-17 明确授权额外一次窄范围文档修复）
+- Review result: CHANGES_REQUESTED—CRITICAL：目标 script 从 7,524 字符重写为 4,561 字符，删除报表/动作列表/买入确认/重置异常与历史等既有行为；IMPORTANT：PUT 后 `updatedAt` 必须与写入窗口 fresh GET 基线比较，漂移时停止并重建载荷/回滚
+- Review fix commit: `40cc875`
+- Review-fix validation: 目标 script 改为快照最小增量，保留报表/总计/动作/持久化/确认/重置/历史/CLI 标记且 Python 可编译；写入门改为 fresh GET 精确匹配、`prePutUpdatedAt` 比较、漂移停止重建复审重确认、fresh rollback 与回滚后精确恢复
+- Re-review: CHANGES_REQUESTED—IMPORTANT：post-PUT gate 尚未同时验证 AMKR T2 的下跌 15%、恢复 20%、最多 8 次
+- Extra review-fix commit: `39556ac`
+- Extra review-fix validation: 仅修改准备清单与 post-PUT gate 两处措辞，要求 content/script 双字段验证完整 T2 合同（10k/20%/10%/15%/20%/8 次）；JSON 载荷、快照与回滚未改
+- Final review: APPROVED—准备清单与 post-PUT gate 均验证完整 AMKR T2 合同；额外修复未改变任何 JSON 载荷、快照或回滚对象
+- Unresolved feedback: 无；等待用户明确授权一次三字段部分 PUT、立即回读，以及失败时是否授权回滚

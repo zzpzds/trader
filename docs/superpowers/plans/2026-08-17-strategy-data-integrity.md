@@ -921,7 +921,7 @@ git commit -m "test(worker): lock hotspot symbol source"
 - Create: `openspec/changes/fix-strategy-data-integrity/production-update-plan.md`
 - Modify: `openspec/changes/fix-strategy-data-integrity/tasks.md`
 
-- [ ] **Step 1: 只读获取最新策略，禁止复用设计阶段响应**
+- [x] **Step 1: 只读获取最新策略，禁止复用设计阶段响应**
 
 Run:
 
@@ -931,7 +931,7 @@ curl --silent --show-error 'http://47.93.78.7/api/strategies/bd181ef3-298c-487c-
 
 Expected: HTTP 成功并返回 JSON；`id` 精确为 `bd181ef3-298c-487c-bc02-c0bb69664912`。若 ID、响应结构或策略内容与预期不符，停止本任务并报告，不准备 PUT。
 
-- [ ] **Step 2: 用 `apply_patch` 创建可审计的生产更新计划**
+- [x] **Step 2: 用 `apply_patch` 创建可审计的生产更新计划**
 
 在 `production-update-plan.md` 中记录实际抓取时间、实际 `updatedAt`，并原样保存最新响应中的 `symbols`、`content`、`script` 三个字段。随后写入两个完整 JSON 对象：
 
@@ -940,18 +940,18 @@ Expected: HTTP 成功并返回 JSON；`id` 精确为 `bd181ef3-298c-487c-bc02-c0
 
 文档还需写明以下结构化检查：五个目标 symbols 精确匹配；三个目标字段不含 AIQ；正文/脚本均含 AMKR、T2、20% 和 10%；PUT 后 `updatedAt` 发生变化。
 
-- [ ] **Step 3: 检查载荷但不发送生产写请求**
+- [x] **Step 3: 检查载荷但不发送生产写请求**
 
 人工逐字段比对最新 GET 与两个 JSON 对象，确认部分 PUT 不会覆盖任何无关字段。本步骤禁止运行 `curl -X PUT`，禁止部署，禁止触发热点或监控任务。
 
-- [ ] **Step 4: 勾选 OpenSpec 3.2 并提交只读证据**
+- [x] **Step 4: 勾选 OpenSpec 3.2 并提交只读证据**
 
 ```bash
 git add openspec/changes/fix-strategy-data-integrity/production-update-plan.md openspec/changes/fix-strategy-data-integrity/tasks.md
 git commit -m "docs: prepare AMKR production correction"
 ```
 
-- [ ] **Step 5: 在生产写入决策点暂停**
+- [x] **Step 5: 在生产写入决策点暂停**
 
 向用户展示 PUT 载荷摘要、快照 `updatedAt` 和回滚边界，明确询问是否允许：发送一次部分 PUT、立即回读；校验失败时是否同时授权使用快照回滚。
 
