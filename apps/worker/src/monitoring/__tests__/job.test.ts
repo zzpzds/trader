@@ -55,6 +55,115 @@ function makeSelect(priceRows: any[] = [], skillRows: any[] = []) {
 describe("runMonitoringJob", () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it("replays BUY, SELL, and re-entry before calling analyze", async () => {
+    mockAnalyze.mockReset();
+    mockAnalyze.mockResolvedValueOnce({
+      analysis: "ok",
+      hasActionItems: false,
+      referencePriceUpdates: [],
+      suggestedSkills: [],
+    });
+
+    const setMock = vi.fn().mockReturnValue({
+      where: vi.fn().mockResolvedValue({}),
+    });
+    const updateMock = vi.fn().mockReturnValue({ set: setMock });
+    const insertReturning = vi.fn().mockResolvedValue([{ id: "run-replay" }]);
+    const insertMock = vi.fn().mockReturnValue({
+      values: vi.fn().mockReturnValue({ returning: insertReturning }),
+    });
+
+    const mockDb = {
+      query: {
+        strategies: {
+          findMany: vi.fn().mockResolvedValue([
+            {
+              id: "strategy-replay",
+              name: "Replay strategy",
+              content: "rules",
+              symbols: ["META"],
+              analysisWindowDays: 30,
+            },
+          ]),
+        },
+        positions: {
+          findMany: vi.fn().mockResolvedValue([
+            {
+              id: "position-meta",
+              symbol: "META",
+              referencePrice: null,
+              positionLots: [
+                {
+                  id: "buy-1",
+                  type: "BUY",
+                  shares: "5",
+                  costPrice: "600",
+                  lotDate: "2026-05-11",
+                  createdAt: new Date("2026-05-11T09:00:00Z"),
+                  notes: null,
+                },
+                {
+                  id: "sell-1",
+                  type: "SELL",
+                  shares: "5",
+                  costPrice: "660",
+                  lotDate: "2026-07-13",
+                  createdAt: new Date("2026-07-13T09:00:00Z"),
+                  notes: "full exit",
+                },
+                {
+                  id: "buy-2",
+                  type: "BUY",
+                  shares: "5",
+                  costPrice: "600",
+                  lotDate: "2026-07-23",
+                  createdAt: new Date("2026-07-23T09:00:00Z"),
+                  notes: "re-entry",
+                },
+              ],
+            },
+          ]),
+        },
+        skills: { findMany: vi.fn().mockResolvedValue([]) },
+      },
+      insert: insertMock,
+      update: updateMock,
+      select: makeSelect([
+        {
+          symbol: "META",
+          date: "2026-08-16",
+          open: "600",
+          high: "610",
+          low: "590",
+          close: "605",
+          volume: 1000n,
+        },
+      ]),
+    } as any;
+
+    await runMonitoringJob(mockDb);
+
+    const positions = mockAnalyze.mock.calls[0][2];
+    expect(positions).toHaveLength(1);
+    expect(positions[0]).toMatchObject({
+      symbol: "META",
+      totalShares: 5,
+      costBasis: 3000,
+      avgCost: 600,
+      realizedPnl: 300,
+      isClosed: false,
+    });
+    expect(positions[0].lots.map((lot: any) => lot.type)).toEqual([
+      "BUY",
+      "SELL",
+      "BUY",
+    ]);
+    expect(positions[0].lots[1]).toMatchObject({
+      id: "sell-1",
+      createdAt: new Date("2026-07-13T09:00:00Z"),
+    });
+  });
+
   it("skips when no strategies with lots found", async () => {
     const mockDb = {
       query: {

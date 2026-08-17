@@ -58,12 +58,25 @@ export interface SkillCatalogEntry {
   description: string | null;
 }
 
+export interface PositionLotInfo {
+  id: string;
+  type: "BUY" | "SELL";
+  shares: number;
+  costPrice: number;
+  lotDate: string;
+  createdAt?: string | Date | null;
+  notes?: string;
+}
+
 export interface PositionInfo {
   symbol: string;
   totalShares: number;
+  costBasis: number;
   avgCost: number;
+  realizedPnl: number;
+  isClosed: boolean;
   referencePrice?: number | null;
-  lots: Array<{ shares: number; costPrice: number; lotDate: string; notes?: string }>;
+  lots: PositionLotInfo[];
 }
 
 export interface SkillForAnalysis {

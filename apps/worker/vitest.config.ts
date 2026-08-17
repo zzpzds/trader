@@ -7,8 +7,11 @@ export default defineConfig({
     environment: "node",
   },
   resolve: {
-    alias: {
-      "@trader/db": path.resolve(__dirname, "../../packages/db/src/index.ts"),
-    },
+    alias: [
+      {
+        find: /^@trader\/db$/,
+        replacement: path.resolve(__dirname, "../../packages/db/src/index.ts"),
+      },
+    ],
   },
 });

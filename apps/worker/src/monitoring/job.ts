@@ -10,6 +10,10 @@ import {
   skills,
   strategySkills,
 } from "@trader/db";
+import {
+  replayPosition,
+  type PositionTransactionType,
+} from "@trader/db/position-replay";
 import { fetchPrices, type FetchResult } from "./alphavantage-fetch.js";
 import { createAnalyzer, type PositionInfo, type SkillForAnalysis } from "./analyze.js";
 import { loadRelevantMemories } from "./load-memories.js";
@@ -74,9 +78,12 @@ interface StrategyWithLots {
     symbol: string;
     referencePrice: string | null;
     positionLots: Array<{
+      id: string;
+      type: PositionTransactionType | null;
       shares: string;
       costPrice: string;
       lotDate: string;
+      createdAt: Date | string | null;
       notes: string | null;
     }>;
   }>;
@@ -108,9 +115,12 @@ async function findStrategiesWithLots(db: DbType, strategyId?: string): Promise<
           symbol: p.symbol,
           referencePrice: p.referencePrice ?? null,
           positionLots: p.positionLots.map((l) => ({
+            id: l.id,
+            type: l.type ?? "BUY",
             shares: l.shares,
             costPrice: l.costPrice,
             lotDate: l.lotDate,
+            createdAt: l.createdAt,
             notes: l.notes,
           })),
         })),
@@ -233,24 +243,35 @@ export async function processStrategy(
     }
 
     const positionInfos: PositionInfo[] = strategy.positions.map((p) => {
-      const totalShares = p.positionLots.reduce((s, l) => s + parseFloat(l.shares), 0);
-      const totalCost = p.positionLots.reduce(
-        (s, l) => s + parseFloat(l.shares) * parseFloat(l.costPrice),
-        0
+      const lots = p.positionLots.map((l) => ({
+        id: l.id,
+        type: l.type ?? "BUY",
+        shares: parseFloat(l.shares),
+        costPrice: parseFloat(l.costPrice),
+        lotDate: l.lotDate,
+        createdAt: l.createdAt,
+        notes: l.notes ?? undefined,
+      }));
+      const replay = replayPosition(
+        lots.map((lot) => ({
+          id: lot.id,
+          type: lot.type,
+          shares: lot.shares,
+          price: lot.costPrice,
+          date: lot.lotDate,
+          createdAt: lot.createdAt,
+        }))
       );
-      const avgCost = totalShares > 0 ? totalCost / totalShares : 0;
 
       return {
         symbol: p.symbol,
-        totalShares,
-        avgCost,
+        totalShares: replay.heldShares,
+        costBasis: replay.costBasis,
+        avgCost: replay.avgCost,
+        realizedPnl: replay.realizedPnl,
+        isClosed: replay.isClosed,
         referencePrice: p.referencePrice !== null ? parseFloat(p.referencePrice) : null,
-        lots: p.positionLots.map((l) => ({
-          shares: parseFloat(l.shares),
-          costPrice: parseFloat(l.costPrice),
-          lotDate: l.lotDate,
-          notes: l.notes ?? undefined,
-        })),
+        lots,
       };
     });
 
