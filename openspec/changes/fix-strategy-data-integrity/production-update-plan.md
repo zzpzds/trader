@@ -47,7 +47,7 @@ Completed preparation checks:
 - [x] Snapshot response is JSON and its `id` exactly matches the target strategy.
 - [x] Proposed `symbols` exactly equal `[NVDA, GOOGL, MSFT, META, AMKR]`, in that order.
 - [x] The proposed `symbols`, `content`, and `script` contain no `AIQ` reference.
-- [x] Both proposed `content` and `script` contain AMKR, T2, a $10,000 total position, a 20% first entry, and a 10% later add.
+- [x] Both proposed `content` and `script` contain the complete AMKR T2 contract: $10,000 target, 20% first entry, 10% later add, 15% drop trigger (`ref × 0.85`), 20% recovery trigger (`ref × 1.20`), and 8 maximum adds.
 - [x] The four T1 symbols retain the snapshot T1 parameter values and unchanged runtime behavior.
 - [x] The proposed script retains the snapshot reporting/table/totals/return/action-command output, state load/save, buy confirmation, reset unknown/no-position messages, reset fetch try/catch, `recovery_reset` history, reset success output, and CLI behavior.
 - [x] Both JSON objects contain only `symbols`, `content`, and `script`; no unrelated field can be overwritten.
@@ -57,7 +57,7 @@ Mandatory write-window gate after a new explicit confirmation:
 1. Immediately perform a fresh GET. Require valid JSON, the exact strategy ID, the expected response schema and field types, and exact equality of `symbols`, `content`, `script`, and `updatedAt` with the documented snapshot above. If anything has drifted, **STOP before PUT**: regenerate the proposed payload and rollback from the new snapshot, repeat review, and obtain a new explicit confirmation.
 2. Capture that verified fresh GET's `updatedAt` as `prePutUpdatedAt`. The rollback payload must be the verified fresh pre-PUT `symbols`/`content`/`script` snapshot. If those fields differ from the documented rollback JSON, **STOP before PUT**.
 3. Send only the confirmed three-field partial PUT, then immediately GET again. Require the post-PUT `updatedAt` to differ from `prePutUpdatedAt`.
-4. Validate the post-PUT GET structurally: symbols must exactly equal `[NVDA, GOOGL, MSFT, META, AMKR]`; `symbols`, `content`, and `script` must contain no `AIQ`; and **both** `content` and `script` must contain AMKR/T2/$10,000/20% initial/10% add semantics. Do not trigger downstream work unless every check passes.
+4. Validate the post-PUT GET structurally: symbols must exactly equal `[NVDA, GOOGL, MSFT, META, AMKR]`; `symbols`, `content`, and `script` must contain no `AIQ`; and **both** `content` and `script` must contain the complete AMKR T2 contract: $10,000 target, 20% initial entry, 10% add, 15% drop trigger (`ref × 0.85`), 20% recovery trigger (`ref × 1.20`), and 8 maximum adds. Do not trigger downstream work unless every check passes.
 5. On failure, rollback only when the new explicit confirmation included rollback authorization. PUT the verified fresh pre-PUT three-field snapshot, immediately GET again, and require exact restoration of all three fields. Otherwise stop and request direction.
 
 No payload in this document has been sent. No network request or production write was performed during this review-fix round.
