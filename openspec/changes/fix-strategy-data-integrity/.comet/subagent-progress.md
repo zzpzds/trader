@@ -155,3 +155,23 @@
 - Guard disposition: OpenSpec `3.3` 按“用户明确豁免生产写入”的真实处置结果完成，不声称生产写入成功
 - Stage: `build-complete-by-user-waiver`
 - Unresolved feedback: 无当前阻塞项；AMKR/T2 线上替换仅作为未来可选维护项，届时需新的明确写入授权
+
+## Verification Repair Task
+
+- Task: `Task 8: 稳定 Alpha Vantage 时间窗口测试`
+- OpenSpec mapping: `4.4 固定 Alpha Vantage 测试时间基准，消除夹具随日历时间过期导致的 Worker 全量测试失败`
+- Stage: `checkoff`
+- Implementer: `/root/alphavantage_test_fix`
+- Base commit: `3c71c9a88fe1443485d384dc956217d50306362f`
+- Allowed files: `apps/worker/src/monitoring/__tests__/alphavantage-fetch.test.ts`
+- TDD requirement: 现有五项稳定失败作为 RED；完成根因调查后实施最小测试稳定性修复，并取得定向与 Worker 全量 GREEN
+- Review mode: `standard`
+- Implementation commit: `6623f538a73fdd36e3ce0e0fa7a4ce2fcd57bbe0`
+- Changed files: `apps/worker/src/monitoring/__tests__/alphavantage-fetch.test.ts`
+- RED evidence: 定向测试 13 项中 5 项失败并出现 1 个 unhandled rejection；运行时截止日 `2026-06-18` 晚于夹具 `2026-05-10/12`
+- GREEN evidence: Alpha Vantage 定向测试 13/13；Worker 全量 91/91；无 unhandled rejection
+- Root cause: 成功夹具使用固定日期但生产过滤按 `Date.now()` 计算窗口，测试随日历时间产生耦合；生产逻辑无回归
+- Risk signals: 无跨模块、安全、并发、迁移、公共 API 或超过 200 行变更
+- Task review required: no（standard / 单文件低风险测试稳定性修复）
+- Review/fix round: 0/1
+- Unresolved feedback: 无

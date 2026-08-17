@@ -1042,3 +1042,48 @@ node "$COMET_GUARD" fix-strategy-data-integrity build --apply
 Expected: 只有 OpenSpec 12 项任务全部勾选、生产条件任务已经真实完成、构建测试通过时守卫才推进到 verify。若生产 PUT 仍待确认，守卫不得运行，流程保持在 build 阶段。
 
 **Final scope disposition (2026-08-17):** 用户明确豁免本次生产 AIQ→AMKR 写入并要求标记完成。因此 3.3 以“已记录用户豁免及线上未变事实”收口，不以生产 PUT 成功收口；未再执行任何生产写入。
+
+### Task 8: 稳定 Alpha Vantage 时间窗口测试
+
+**Files:**
+
+- Modify: `apps/worker/src/monitoring/__tests__/alphavantage-fetch.test.ts`
+- Modify: `openspec/changes/fix-strategy-data-integrity/tasks.md`
+
+- [x] **Step 1: 复现并定位日期窗口失败根因**
+
+Run:
+
+```bash
+npm run test -w @trader/worker -- src/monitoring/__tests__/alphavantage-fetch.test.ts
+```
+
+Expected: 现有五项失败稳定复现；调查必须确认失败来自测试夹具日期与运行当天之间的时间耦合，并排除生产取价逻辑回归后才能实施修复。
+
+- [x] **Step 2: 以现有失败作为 RED，实施最小测试稳定性修复**
+
+只允许修改 `alphavantage-fetch.test.ts`。测试必须固定或注入确定性时间基准，使既有价格过滤、排序、API key、批量跳过失败标的和 `outputsize=compact` 行为断言不再随日历时间失效；不得修改生产源码或放宽业务断言。
+
+- [x] **Step 3: 运行定向与 Worker 全量测试确认 GREEN**
+
+Run:
+
+```bash
+npm run test -w @trader/worker -- src/monitoring/__tests__/alphavantage-fetch.test.ts
+npm run test -w @trader/worker
+```
+
+Expected: Alpha Vantage 测试文件及 Worker 全量测试全部 PASS，且没有 unhandled rejection。
+
+- [x] **Step 4: 提交测试修复并由协调者完成任务勾选**
+
+Implementer 只暂存并提交测试文件：
+
+```bash
+git add apps/worker/src/monitoring/__tests__/alphavantage-fetch.test.ts
+git commit -m "test(worker): stabilize Alpha Vantage date fixtures"
+```
+
+审查通过后，由协调者勾选本任务各 Step 与 OpenSpec 4.4，并单独提交计划/任务/检查点状态。
+
+**Result:** `6623f53` 仅修改 Alpha Vantage 测试文件；RED 为 5/13 失败并伴随 1 个 unhandled rejection，固定测试系统时间后定向 13/13、Worker 全量 91/91。该单文件测试修复未命中 `standard` 模式风险信号，因此无需任务级 reviewer。
