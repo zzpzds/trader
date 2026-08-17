@@ -305,8 +305,9 @@ git commit -m "feat(db): add shared position replay"
 
 - Modify: `apps/web/lib/pnl.ts`
 - Modify: `apps/web/lib/__tests__/pnl.test.ts`
+- Modify: `apps/web/vitest.config.ts`
 
-- [ ] **Step 1: 阅读本仓库要求的 Next.js 指南**
+- [x] **Step 1: 阅读本仓库要求的 Next.js 指南**
 
 Run:
 
@@ -316,7 +317,7 @@ cat node_modules/next/dist/docs/01-app/index.md
 
 Expected: 确认本任务只修改普通 TypeScript library，不引入或变更 Next.js framework API。
 
-- [ ] **Step 2: 写兼容层委托的失败测试**
+- [x] **Step 2: 写兼容层委托的失败测试**
 
 在 `apps/web/lib/__tests__/pnl.test.ts` 增加共享函数导入：
 
@@ -332,7 +333,7 @@ it("delegates replay to the shared db module", () => {
 });
 ```
 
-- [ ] **Step 3: 构建 DB 并运行 Web 测试确认 RED**
+- [x] **Step 3: 构建 DB 并运行 Web 测试确认 RED**
 
 Run:
 
@@ -343,7 +344,9 @@ npm run test -w @trader/web -- lib/__tests__/pnl.test.ts
 
 Expected: DB 构建成功；Web 测试只在新断言处 FAIL，因为当前 `pnl.ts` 仍定义自己的 `replayPosition`。
 
-- [ ] **Step 4: 将 `pnl.ts` 顶部替换为兼容导入和类型别名**
+若测试先因 `@trader/db/position-replay` 被根入口 alias 吞掉而无法加载，先把 `apps/web/vitest.config.ts` 的 `@trader/db` alias 收窄为仅匹配根入口的正则，再重新运行并取得上述身份断言 RED；子路径继续由 package exports 解析。
+
+- [x] **Step 4: 将 `pnl.ts` 顶部替换为兼容导入和类型别名**
 
 保留 `EPS`、`sortTxns` 以及 Web 专用函数，删除本地 `PositionPnl` 接口与本地 `replayPosition` 实现，并在文件顶部使用：
 
@@ -370,7 +373,7 @@ export type PositionPnl = PositionReplayResult;
 
 `computeTotalPnl` 和 `buildPnlHistory` 继续调用当前文件绑定的 `replayPosition`；`canDeleteBuy` 继续调用本文件私有的 `sortTxns`。
 
-- [ ] **Step 5: 运行 Web 回归测试和构建**
+- [x] **Step 5: 运行 Web 回归测试和构建**
 
 Run:
 
@@ -382,10 +385,10 @@ npm run build -w @trader/web
 
 Expected: P&L 测试全部 PASS；Next.js build 成功，页面/API 现有导入不需要修改。
 
-- [ ] **Step 6: 勾选 OpenSpec 1.2，确认 1.3 全部覆盖后提交**
+- [x] **Step 6: 勾选 OpenSpec 1.2，确认 1.3 全部覆盖后提交**
 
 ```bash
-git add apps/web/lib/pnl.ts apps/web/lib/__tests__/pnl.test.ts openspec/changes/fix-strategy-data-integrity/tasks.md
+git add apps/web/lib/pnl.ts apps/web/lib/__tests__/pnl.test.ts apps/web/vitest.config.ts openspec/changes/fix-strategy-data-integrity/tasks.md
 git commit -m "refactor(web): reuse shared position replay"
 ```
 
@@ -396,6 +399,7 @@ git commit -m "refactor(web): reuse shared position replay"
 - Modify: `apps/worker/src/monitoring/job.ts`
 - Modify: `apps/worker/src/monitoring/analyze.ts`
 - Modify: `apps/worker/src/monitoring/__tests__/job.test.ts`
+- Modify: `apps/worker/vitest.config.ts`
 
 - [ ] **Step 1: 写 Worker 重新建仓回放的失败测试**
 
@@ -522,6 +526,8 @@ npm run test -w @trader/worker -- src/monitoring/__tests__/job.test.ts
 ```
 
 Expected: 新用例 FAIL；实际 `totalShares` 为 15，且分析输入缺少 `costBasis`、`realizedPnl`、`isClosed` 和 lot 类型。
+
+若测试先因 `@trader/db/position-replay` 被根入口 alias 吞掉而无法加载，先把 `apps/worker/vitest.config.ts` 的 `@trader/db` alias 收窄为仅匹配根入口的正则，再重新运行并取得上述业务断言 RED。
 
 - [ ] **Step 3: 扩展 Worker 数据契约**
 
