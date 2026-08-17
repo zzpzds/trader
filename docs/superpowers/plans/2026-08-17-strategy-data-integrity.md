@@ -873,7 +873,7 @@ git commit -m "fix(worker): render closed positions safely"
 
 - Modify: `apps/worker/src/news/__tests__/job.test.ts`
 
-- [ ] **Step 1: 增加 AIQ → AMKR 回归测试**
+- [x] **Step 1: 增加 AIQ → AMKR 回归测试**
 
 在 `describe("runNewsJob")` 中增加：
 
@@ -897,7 +897,7 @@ it("queries AMKR and never AIQ after the saved symbol replacement", async () => 
 });
 ```
 
-- [ ] **Step 2: 运行热点测试并确认规范行为**
+- [x] **Step 2: 运行热点测试并确认规范行为**
 
 Run:
 
@@ -907,7 +907,7 @@ npm run test -w @trader/worker -- src/news/__tests__/job.test.ts
 
 Expected: PASS。当前实现本就读取 `strategies.symbols`，此用例是 characterization test，用于防止未来回退到正文解析或旧 AIQ 配置；不修改 `apps/worker/src/news/job.ts`。
 
-- [ ] **Step 3: 勾选 OpenSpec 3.1 并提交**
+- [x] **Step 3: 勾选 OpenSpec 3.1 并提交**
 
 ```bash
 git add apps/worker/src/news/__tests__/job.test.ts openspec/changes/fix-strategy-data-integrity/tasks.md

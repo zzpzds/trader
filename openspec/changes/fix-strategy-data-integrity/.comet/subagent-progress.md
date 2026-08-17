@@ -65,7 +65,7 @@
 - Re-review: APPROVED—mock 默认实现得到保留，完成态断言可阻止内部失败静默通过；Task 3 无剩余 CRITICAL/IMPORTANT 问题
 - Unresolved feedback: 无
 
-## Current Task
+## Completed Tasks
 
 - Task: `Task 4: 安全渲染清仓状态和交易历史`
 - OpenSpec mapping: 延续 `2.1` 的分析输入契约，并完成清仓安全提示与有序 BUY/SELL 历史渲染
@@ -80,4 +80,20 @@
 - Task review required: yes（standard / prompt behavior）
 - Review/fix round: 0/1
 - Task review: APPROVED—清仓/开放分支安全、有限价格与均价 guard、有序历史、非变异排序和 prompt 插入位置均符合计划
+- Unresolved feedback: 无
+
+## Current Task
+
+- Task: `Task 5: 锁定热点任务的规范标的来源`
+- OpenSpec mapping: `3.1 增加热点任务测试，确认其严格按保存后的 strategies.symbols 生成查询`
+- Stage: `checkoff`
+- Allowed files: `apps/worker/src/news/__tests__/job.test.ts`
+- TDD mode note: characterization test，预期在当前实现上直接 PASS，不要求伪造 RED
+- Implementation commit: `94ba6dd`
+- Changed files: `apps/worker/src/news/__tests__/job.test.ts`
+- Characterization evidence: news job 定向测试 6/6；查询 `AMKR stock news` 且从未查询 `AIQ stock news`
+- Risk signals: 无生产代码、单一测试文件
+- Task review required: no（standard / test-only low risk）
+- Review/fix round: 0/1
+- Task review: not required（test-only low risk）
 - Unresolved feedback: 无
