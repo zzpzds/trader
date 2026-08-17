@@ -32,7 +32,7 @@ base-ref: 778a7f54639f1a561d5a8effba25f6adf2a6dbd7
 - Create: `packages/db/src/position-replay.test.ts`
 - Modify: `packages/db/package.json`
 
-- [ ] **Step 1: 写共享回放的失败测试**
+- [x] **Step 1: 写共享回放的失败测试**
 
 创建 `packages/db/src/position-replay.test.ts`，完整覆盖移动平均成本、清仓、重新建仓和确定性排序：
 
@@ -163,7 +163,7 @@ describe("replayPosition", () => {
 });
 ```
 
-- [ ] **Step 2: 运行测试并确认 RED**
+- [x] **Step 2: 运行测试并确认 RED**
 
 Run:
 
@@ -173,7 +173,7 @@ npm run test -w @trader/db -- src/position-replay.test.ts
 
 Expected: FAIL，错误指出 `./position-replay` 模块不存在。
 
-- [ ] **Step 3: 实现最小共享回放函数**
+- [x] **Step 3: 实现最小共享回放函数**
 
 创建 `packages/db/src/position-replay.ts`：
 
@@ -264,7 +264,7 @@ export function replayPosition(
 }
 ```
 
-- [ ] **Step 4: 暴露独立 package 子路径**
+- [x] **Step 4: 暴露独立 package 子路径**
 
 在 `packages/db/package.json` 的 `exports` 中，在 `./schema` 后加入：
 
@@ -278,7 +278,7 @@ export function replayPosition(
 
 不要修改 `packages/db/src/index.ts`；共享模块只从独立子路径导出。
 
-- [ ] **Step 5: 运行测试和构建并确认 GREEN**
+- [x] **Step 5: 运行测试和构建并确认 GREEN**
 
 Run:
 
@@ -290,7 +290,7 @@ npm run build -w @trader/db
 
 Expected: 三条命令全部成功；`packages/db/dist/position-replay.js` 与 `.d.ts` 生成。
 
-- [ ] **Step 6: 勾选 OpenSpec 1.1 与共享回放相关的 1.3，并提交**
+- [x] **Step 6: 勾选 OpenSpec 1.1 与共享回放相关的 1.3，并提交**
 
 只勾选已经由本任务测试证明的条目。提交命令：
 
@@ -1034,4 +1034,3 @@ node "$COMET_GUARD" fix-strategy-data-integrity build --apply
 ```
 
 Expected: 只有 OpenSpec 12 项任务全部勾选、生产条件任务已经真实完成、构建测试通过时守卫才推进到 verify。若生产 PUT 仍待确认，守卫不得运行，流程保持在 build 阶段。
-
