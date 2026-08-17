@@ -63,3 +63,11 @@ Mandatory write-window gate after a new explicit confirmation:
 5. On failure, rollback only when the new explicit confirmation included rollback authorization. PUT the verified fresh pre-PUT three-field snapshot, immediately GET again, and require exact restoration of all three fields. Otherwise stop and request direction.
 
 No payload in this document has been sent. No network request or production write was performed during this review-fix round.
+
+## Actual verification and production outcome (2026-08-17)
+
+- Targeted verification passed: DB full suite **55/55**; Web P&L **13/13**; Worker monitoring job, analyzer, and news job **33/33**. The shared replay and Worker regression both verify the BUY → SELL → re-entry example as **held 5**, **cost basis 3000**, **average cost 600**, **realized P&L 300**, and **open**.
+- Builds passed: `@trader/db`, `@trader/worker`, and `@trader/web`. The Web production build compiled, type-checked, and generated all 20 static pages without a font/network retry.
+- Full `npm test` is **not green**: it has exactly the accepted baseline of **5 failures** in `apps/worker/src/monitoring/__tests__/alphavantage-fetch.test.ts` (Worker: 86 passed, 5 failed; DB: 55/55; Web: 241/241). Its fixed 2026-05 fixtures are outside the current 60-day cutoff on 2026-08-17; no additional failing test file or new failure was observed. Non-failing test-harness logs include mocked-memory warnings and expected failure-path logs.
+- `openspec validate fix-strategy-data-integrity --strict` passed. `git diff --check` passed. OpenSpec emitted non-failing PostHog telemetry DNS warnings after validation; these did not affect its successful exit status. Generated tracked Worker `dist` changes were restored to `HEAD`; untracked `packages/db/dist/position-replay.*` artifacts were intentionally left untouched.
+- Production disposition: the authorized three-field PUT attempt exited **7** with HTTP **000** because the connection failed before any server response. The immediate GET returned HTTP **200** and verified that `symbols`, `content`, `script`, and `updatedAt` were exactly unchanged from the fresh pre-PUT snapshot. No rollback was needed or executed because no state change occurred. The user declined retry; OpenSpec **3.3 remains pending**, and the Comet build guard must not run.
