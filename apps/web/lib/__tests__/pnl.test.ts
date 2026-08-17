@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from "vitest";
+import { replayPosition as sharedReplayPosition } from "@trader/db/position-replay";
 import { replayPosition, computeTotalPnl, canDeleteBuy, buildPnlHistory, type Txn, type DatedTxn, type Snapshot } from "../pnl";
 
 function buy(id: string, shares: number, price: number, date: string): Txn {
@@ -10,6 +11,10 @@ function sell(id: string, shares: number, price: number, date: string): Txn {
 }
 
 describe("replayPosition", () => {
+  it("delegates replay to the shared db module", () => {
+    expect(replayPosition).toBe(sharedReplayPosition);
+  });
+
   it("pure buys: held + avg + grossInvested", () => {
     const s = replayPosition([buy("a", 100, 10, "2026-01-01"), buy("b", 100, 12, "2026-01-02")]);
     expect(s.heldShares).toBe(200);

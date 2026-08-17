@@ -1,24 +1,21 @@
+import {
+  replayPosition,
+  type PositionReplayResult,
+  type PositionTransaction,
+  type PositionTransactionType,
+} from "@trader/db/position-replay";
+
+export { replayPosition };
+
 const EPS = 1e-9;
 
-export type TxnType = "BUY" | "SELL";
+export type TxnType = PositionTransactionType;
 
-export interface Txn {
-  id: string;
+export interface Txn extends PositionTransaction {
   type: TxnType;
-  shares: number;
-  price: number;
-  date: string; // YYYY-MM-DD
-  createdAt?: string | Date | null;
 }
 
-export interface PositionPnl {
-  heldShares: number;
-  costBasis: number;
-  avgCost: number;
-  grossInvested: number;
-  realizedPnl: number;
-  isClosed: boolean;
-}
+export type PositionPnl = PositionReplayResult;
 
 function sortTxns(txns: Txn[]): Txn[] {
   return [...txns].sort((a, b) => {
@@ -27,41 +24,6 @@ function sortTxns(txns: Txn[]): Txn[] {
     const cb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
     return ca - cb;
   });
-}
-
-export function replayPosition(txns: Txn[]): PositionPnl {
-  let heldShares = 0;
-  let costBasis = 0;
-  let grossInvested = 0;
-  let realizedPnl = 0;
-
-  for (const t of sortTxns(txns)) {
-    if (t.type === "BUY") {
-      heldShares += t.shares;
-      costBasis += t.shares * t.price;
-      grossInvested += t.shares * t.price;
-    } else {
-      const avg = heldShares > EPS ? costBasis / heldShares : 0;
-      realizedPnl += (t.price - avg) * t.shares;
-      costBasis -= avg * t.shares;
-      heldShares -= t.shares;
-    }
-  }
-
-  if (heldShares < EPS) {
-    heldShares = 0;
-    costBasis = 0;
-  }
-  const avgCost = heldShares > EPS ? costBasis / heldShares : 0;
-
-  return {
-    heldShares,
-    costBasis,
-    avgCost,
-    grossInvested,
-    realizedPnl,
-    isClosed: txns.length > 0 && heldShares < EPS,
-  };
 }
 
 export interface TotalPnl {

@@ -10,12 +10,12 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
   },
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./"),
-      "@trader/db": path.resolve(
-        __dirname,
-        "../../packages/db/src/index.ts"
-      ),
-    },
+    alias: [
+      {
+        find: /^@trader\/db$/,
+        replacement: path.resolve(__dirname, "../../packages/db/src/index.ts"),
+      },
+      { find: "@", replacement: path.resolve(__dirname, "./") },
+    ],
   },
 });
