@@ -102,7 +102,7 @@
 
 - Task: `Task 6: 获取最新线上快照并准备生产修正载荷`
 - OpenSpec mapping: `3.2 获取并校验目标线上 AI 策略的变更前快照，准备 AMKR 配置修正载荷`
-- Stage: `production-write-decision-gate`
+- Stage: `production-write-decision-gate-refreshed`
 - Allowed files: `openspec/changes/fix-strategy-data-integrity/production-update-plan.md`
 - TDD mode note: 只读外部快照与文档载荷任务，不适用代码 RED/GREEN
 - Implementation commit: `6d0f57a`
@@ -119,4 +119,11 @@
 - Extra review-fix commit: `39556ac`
 - Extra review-fix validation: 仅修改准备清单与 post-PUT gate 两处措辞，要求 content/script 双字段验证完整 T2 合同（10k/20%/10%/15%/20%/8 次）；JSON 载荷、快照与回滚未改
 - Final review: APPROVED—准备清单与 post-PUT gate 均验证完整 AMKR T2 合同；额外修复未改变任何 JSON 载荷、快照或回滚对象
-- Unresolved feedback: 无；等待用户明确授权一次三字段部分 PUT、立即回读，以及失败时是否授权回滚
+- Production authorization: 用户于 `2026-08-17T15:03:28+0800 (CST)` 回复 `1`，明确授权一次三字段部分 PUT、立即回读，并授权校验失败时用 fresh pre-PUT 快照自动回滚后再回读
+- Fresh GET result: `2026-08-17T15:03:58+0800 (CST)`，HTTP 200；ID/updatedAt/symbols/content 与文档快照一致，但线上 `script` 长 7,604 字符，文档快照长 7,526 字符
+- Drift detail: 首个且唯一结构差异位于 `main()` 前，线上脚本包含 `# ── 入口 ──…` 注释，文档快照在准备时漏录；未发送 PUT
+- Snapshot refresh commit: `cdf1b5d`
+- Snapshot refresh validation: 第一个 JSON 的 `symbols/content/script` 与 `/private/tmp/trader-strategy-update.NYVCT5/pre.json` 精确一致；目标 script 同步保留入口注释；未改变 AMKR/T2 参数与安全门
+- Snapshot refresh review: APPROVED
+- Authorization disposition: 前一次授权未触发 PUT，因 fresh GET 漂移门已安全停止；刷新证据后必须取得新的显式生产确认
+- Unresolved feedback: 等待用户重新授权一次三字段部分 PUT、立即回读，以及失败时自动回滚
