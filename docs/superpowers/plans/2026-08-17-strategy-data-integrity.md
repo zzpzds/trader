@@ -1040,3 +1040,5 @@ node "$COMET_GUARD" fix-strategy-data-integrity build --apply
 ```
 
 Expected: 只有 OpenSpec 12 项任务全部勾选、生产条件任务已经真实完成、构建测试通过时守卫才推进到 verify。若生产 PUT 仍待确认，守卫不得运行，流程保持在 build 阶段。
+
+**Final scope disposition (2026-08-17):** 用户明确豁免本次生产 AIQ→AMKR 写入并要求标记完成。因此 3.3 以“已记录用户豁免及线上未变事实”收口，不以生产 PUT 成功收口；未再执行任何生产写入。

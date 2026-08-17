@@ -1,8 +1,8 @@
-# AMKR production correction — prepared, production pending
+# AMKR production correction — closed by explicit user waiver
 
 ## Status and boundary
 
-- **Status:** LOCAL WORK DONE — the attempted production PUT did not reach the server, the immediate GET proved production unchanged, and the user stopped retrying.
+- **Status:** CHANGE CLOSED BY EXPLICIT USER WAIVER — the attempted production PUT did not reach the server, the immediate GET proved production unchanged, and the user subsequently accepted leaving the production strategy unchanged for this change.
 - **Strategy ID validated:** `bd181ef3-298c-487c-bc02-c0bb69664912` (exact match)
 - **Read-only GET response completion time (Asia/Shanghai):** `2026-08-17T15:03:58+0800 (CST)`
 - **Snapshot `updatedAt`:** `2026-07-30T11:19:20.720Z`
@@ -70,4 +70,11 @@ No payload prepared or re-reviewed in this document's review-fix round was sent.
 - Builds passed: `@trader/db`, `@trader/worker`, and `@trader/web`. The Web production build compiled, type-checked, and generated all 20 static pages without a font/network retry.
 - Full `npm test` is **not green**: it has exactly the accepted baseline of **5 failures** in `apps/worker/src/monitoring/__tests__/alphavantage-fetch.test.ts` (Worker: 86 passed, 5 failed; DB: 55/55; Web: 241/241). Its fixed 2026-05 fixtures are outside the current 60-day cutoff on 2026-08-17; no additional failing test file or new failure was observed. Non-failing test-harness logs include mocked-memory warnings and expected failure-path logs.
 - `openspec validate fix-strategy-data-integrity --strict` passed. `git diff --check` passed. OpenSpec emitted non-failing PostHog telemetry DNS warnings after validation; these did not affect its successful exit status. Generated tracked Worker `dist` changes were restored to `HEAD`; untracked `packages/db/dist/position-replay.*` artifacts were intentionally left untouched.
-- Production disposition: the authorized three-field PUT attempt exited **7** with HTTP **000** because the connection failed before any server response. The immediate GET returned HTTP **200** and verified that `symbols`, `content`, `script`, and `updatedAt` were exactly unchanged from the fresh pre-PUT snapshot. No rollback was needed or executed because no state change occurred. The user declined retry; OpenSpec **3.3 remains pending**, and the Comet build guard must not run.
+- Production disposition: the authorized three-field PUT attempt exited **7** with HTTP **000** because the connection failed before any server response. The immediate GET returned HTTP **200** and verified that `symbols`, `content`, `script`, and `updatedAt` were exactly unchanged from the fresh pre-PUT snapshot. No rollback was needed or executed because no state change occurred. The user declined retry and later explicitly waived this production update from the current acceptance scope. OpenSpec **3.3 is disposition-complete by user waiver**, not by a successful production write.
+
+## Final user acceptance and waiver (2026-08-17)
+
+- The user explicitly requested that the production strategy-script/configuration update be left alone and that this change be marked complete.
+- No additional production PUT, rollback, deployment, hotspot trigger, or monitoring trigger was issued after that instruction.
+- The latest verified read-only state remains the pre-PUT snapshot: `symbols` still contains `AIQ`, the production `script` still configures AIQ as T1, and `updatedAt` remains `2026-07-30T11:19:20.720Z`.
+- The prepared AMKR/T2 payload and rollback snapshot are retained only as optional future maintenance material. They are not evidence that production was changed.

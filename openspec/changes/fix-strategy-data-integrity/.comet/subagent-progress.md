@@ -150,6 +150,8 @@
 - Final review: 首轮 `CHANGES_REQUESTED`—clean checkout 缺少已导出的 `packages/db/dist/position-replay.{js,d.ts}`；另有生产文档措辞歧义与 4 处 EOF 空行
 - Final review fix: `8ff831b` 新增两个确定性 DB dist 产物，澄清 PUT 审计措辞并删除 4 处 EOF 空行；clean-checkout DB 55/55、Web 13/13、Worker 33/33
 - Final re-review: `APPROVED`—原 Important 与 Minor 均已解决，无新增 CRITICAL/IMPORTANT
-- Guard disposition: OpenSpec `3.3` 因线上 PUT 未生效且用户停止重试而保持未完成；按计划未运行 Comet build → verify 守卫，阶段保持 `build`
-- Stage: `build-complete-with-production-pending`
-- Unresolved feedback: OpenSpec `3.3` 待未来新的生产写入授权与成功回读
+- Final user waiver: 用户明确表示策略脚本不影响当前目标，要求不再处理线上 AIQ→AMKR 写入并直接标记完成
+- Production truth: 未再发送 PUT；最新成功回读仍为 AIQ/T1 旧状态，`updatedAt=2026-07-30T11:19:20.720Z`
+- Guard disposition: OpenSpec `3.3` 按“用户明确豁免生产写入”的真实处置结果完成，不声称生产写入成功
+- Stage: `build-complete-by-user-waiver`
+- Unresolved feedback: 无当前阻塞项；AMKR/T2 线上替换仅作为未来可选维护项，届时需新的明确写入授权
