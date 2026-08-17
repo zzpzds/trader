@@ -5,7 +5,7 @@ export interface PositionTransaction {
   type?: PositionTransactionType | null;
   shares: number;
   price: number;
-  date: string | Date;
+  date: string;
   createdAt?: string | Date | null;
 }
 
@@ -21,12 +21,15 @@ export interface PositionReplayResult {
 const EPSILON = 1e-9;
 
 function compareDateValues(left: string | Date | null | undefined, right: string | Date | null | undefined) {
-  const leftValue = left == null ? "" : left instanceof Date ? left.toISOString() : left;
-  const rightValue = right == null ? "" : right instanceof Date ? right.toISOString() : right;
-  return leftValue.localeCompare(rightValue);
+  const toTimestamp = (value: string | Date | null | undefined) => {
+    const timestamp = value == null ? Number.NaN : new Date(value).getTime();
+    return Number.isFinite(timestamp) ? timestamp : 0;
+  };
+
+  return toTimestamp(left) - toTimestamp(right);
 }
 
-export function replayPositionTransactions(transactions: readonly PositionTransaction[]): PositionReplayResult {
+export function replayPosition(transactions: readonly PositionTransaction[]): PositionReplayResult {
   const ordered = [...transactions].sort((left, right) =>
     compareDateValues(left.date, right.date) ||
     compareDateValues(left.createdAt, right.createdAt) ||
