@@ -102,13 +102,13 @@
 
 - Task: `Task 6: 获取最新线上快照并准备生产修正载荷`
 - OpenSpec mapping: `3.2 获取并校验目标线上 AI 策略的变更前快照，准备 AMKR 配置修正载荷`
-- Stage: `production-write-decision-gate-refreshed`
+- Stage: `production-write-retry-decision-gate`
 - Allowed files: `openspec/changes/fix-strategy-data-integrity/production-update-plan.md`
 - TDD mode note: 只读外部快照与文档载荷任务，不适用代码 RED/GREEN
 - Implementation commit: `6d0f57a`
 - GET evidence: `2026-08-17T14:22:46+0800 (CST)`；快照 `updatedAt=2026-07-30T11:19:20.720Z`；ID 精确匹配
 - Payload validation: 两个 JSON 对象仅含 `symbols/content/script`；目标 symbols 精确；目标三字段无 AIQ；content/script 均含 AMKR/T2/10k/20%/10%；回滚载荷保存原始三字段
-- Production boundary: 只允许 GET；禁止 PUT、部署、手动触发热点或监控
+- Production boundary: 仅在逐次明确授权后允许一次三字段 PUT；始终禁止部署、手动触发热点或监控
 - Risk signals: 生产配置载荷与回滚边界
 - Task review required: yes（standard / production payload evidence）
 - Review/fix round: 2/2（用户于 2026-08-17 明确授权额外一次窄范围文档修复）
@@ -126,4 +126,9 @@
 - Snapshot refresh validation: 第一个 JSON 的 `symbols/content/script` 与 `/private/tmp/trader-strategy-update.NYVCT5/pre.json` 精确一致；目标 script 同步保留入口注释；未改变 AMKR/T2 参数与安全门
 - Snapshot refresh review: APPROVED
 - Authorization disposition: 前一次授权未触发 PUT，因 fresh GET 漂移门已安全停止；刷新证据后必须取得新的显式生产确认
-- Unresolved feedback: 等待用户重新授权一次三字段部分 PUT、立即回读，以及失败时自动回滚
+- Second production authorization: 用户于 `2026-08-17T15:23:44+0800 (CST)` 再次回复 `1`，授权一次三字段 PUT、立即回读与失败自动回滚
+- Second fresh preflight: HTTP 200；ID、`updatedAt=2026-07-30T11:19:20.720Z` 与三目标字段全部精确匹配刷新快照；待发 payload SHA-256=`977ef00c44ceaef999bd6749cec6d9560d7c221f60bd73404a7a8f77b7999d88`
+- PUT attempt: curl exit `7`、HTTP `000`，连接 `47.93.78.7:80` 失败，未收到服务端响应；未自动重试写请求
+- Post-failure GET: `2026-08-17T15:25:45+0800 (CST)` HTTP 200；`symbols/content/script/updatedAt` 与 fresh pre-PUT 快照完全一致，三字段 SHA-256=`fdd48346e3bf2115bc617a5fb9e2021f7c7fe06c8a612c8eda548555fb9aa588`
+- Rollback disposition: 线上状态未改变，无需也未执行回滚
+- Unresolved feedback: 本次一次性写授权已消费；等待用户决定是否授权新的单次 PUT 重试
