@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
@@ -31,7 +31,13 @@ function okResponse(body: unknown) {
 describe("fetchPrices", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-15T00:00:00.000Z"));
     process.env.ALPHAVANTAGE_API_KEY = "test-key";
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("returns parsed price data on success", async () => {
@@ -106,7 +112,6 @@ describe("fetchPrices", () => {
   });
 
   it("returns successful symbols and skips failed ones", async () => {
-    vi.useFakeTimers();
     mockFetch
       .mockReturnValueOnce(
         okResponse(makeTimeSeriesResponse({
@@ -127,7 +132,6 @@ describe("fetchPrices", () => {
   });
 
   it("throws when all symbols fail", async () => {
-    vi.useFakeTimers();
     mockFetch
       .mockReturnValueOnce(
         okResponse({ "Error Message": "Invalid API call." })
