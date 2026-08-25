@@ -160,7 +160,7 @@
 
 - Task: `Task 8: 稳定 Alpha Vantage 时间窗口测试`
 - OpenSpec mapping: `4.4 固定 Alpha Vantage 测试时间基准，消除夹具随日历时间过期导致的 Worker 全量测试失败`
-- Stage: `checkoff`
+- Stage: `final-review-passed`
 - Implementer: `/root/alphavantage_test_fix`
 - Base commit: `3c71c9a88fe1443485d384dc956217d50306362f`
 - Allowed files: `apps/worker/src/monitoring/__tests__/alphavantage-fetch.test.ts`
@@ -174,4 +174,7 @@
 - Risk signals: 无跨模块、安全、并发、迁移、公共 API 或超过 200 行变更
 - Task review required: no（standard / 单文件低风险测试稳定性修复）
 - Review/fix round: 0/1
+- Final lightweight review: `APPROVED`—完整检查 `778a7f5..2fe49ac`，无 CRITICAL、IMPORTANT 或 Minor；Task 8 timer 生命周期、等待路径和业务断言可靠，既有绑定约束未回归
+- Fresh full-suite evidence: `npm test` 通过—DB 55/55、Web 241/241、Worker 91/91；无失败或 unhandled rejection
+- Fresh build evidence: DB TypeScript、Worker TypeScript、Web Next.js production build 全部通过；Web 成功生成 20 个静态页面
 - Unresolved feedback: 无
