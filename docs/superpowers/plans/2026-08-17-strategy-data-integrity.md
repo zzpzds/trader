@@ -2,6 +2,7 @@
 change: fix-strategy-data-integrity
 design-doc: docs/superpowers/specs/2026-08-17-strategy-data-integrity-design.md
 base-ref: 778a7f54639f1a561d5a8effba25f6adf2a6dbd7
+archived-with: 2026-08-25-fix-strategy-data-integrity
 ---
 
 # 策略数据完整性修复 Implementation Plan
@@ -14,6 +15,7 @@ base-ref: 778a7f54639f1a561d5a8effba25f6adf2a6dbd7
 
 **Tech Stack:** TypeScript 5.7、Vitest 2、npm workspaces、Drizzle ORM、Next.js 16、Node.js Worker、OpenSpec/Comet。
 
+archived-with: 2026-08-25-fix-strategy-data-integrity
 ---
 
 ## 执行约束

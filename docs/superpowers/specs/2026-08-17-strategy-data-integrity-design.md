@@ -2,6 +2,8 @@
 comet_change: fix-strategy-data-integrity
 role: technical-design
 canonical_spec: openspec
+archived-with: 2026-08-25-fix-strategy-data-integrity
+status: final
 ---
 
 # 策略数据完整性修复技术设计

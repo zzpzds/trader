@@ -4,5 +4,6 @@
   "openspec_tasks": "openspec/changes/fix-strategy-data-integrity/tasks.md",
   "openspec_delta_spec": "openspec/changes/fix-strategy-data-integrity/specs/daily-monitoring/spec.md",
   "handoff_context": "openspec/changes/fix-strategy-data-integrity/.comet/handoff/design-context.json",
-  "handoff_markdown": "openspec/changes/fix-strategy-data-integrity/.comet/handoff/design-context.md"
+  "handoff_markdown": "openspec/changes/fix-strategy-data-integrity/.comet/handoff/design-context.md",
+  "archive_directory": "openspec/changes/archive/2026-08-25-fix-strategy-data-integrity"
 }
